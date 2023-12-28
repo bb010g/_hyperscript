@@ -24,10 +24,15 @@
   },
   "scripts": {
     "test": "mocha-chrome test/index.html",
-    "dist": "cp -r src/* dist/ && npm run-script terser && npm run-script typings && gzip -k -f dist/_hyperscript.min.js > dist/_hyperscript.min.js.gz && exit",
-    "typings": "npx tsc --declaration dist/_hyperscript.js --allowJs --emitDeclarationOnly --skipLibCheck",
+    "dist:build": "npm-run-all terser typings",
+    "dist:compress": "precompress -t gz dist/_hyperscript.min.js",
+    "dist:copy": "shx cp -r \"src/*\" dist/",
+    "dist": "npm-run-all \"dist:copy\" \"dist:build\" \"dist:compress\"",
+    "typings": "tsc --declaration dist/_hyperscript.js --allowJs --emitDeclarationOnly --skipLibCheck",
     "www": "node scripts/www.js",
-    "terser": "terser -m eval dist/_hyperscript.js > dist/_hyperscript.min.js && terser -m eval dist/hdb.js > dist/hdb.min.js"
+    "terser:hdb": "terser -m eval -o dist/hdb.min.js dist/hdb.js",
+    "terser:hyperscript": "terser -m eval -o dist/_hyperscript.min.js dist/_hyperscript.js",
+    "terser": "npm-run-all \"terser:*\""
   },
   "repository": {
     "type": "git",
@@ -47,10 +52,14 @@
     "markdown-it-table-of-contents": "^0.6.0",
     "mocha": "^7.1.1",
     "mocha-chrome": "^2.2.0",
-    "sinon": "^9.0.2"
+    "npm-run-all": "^4.1.5",
+    "precompress": "^12.0.2",
+    "shx": "^0.3.4",
+    "sinon": "^9.0.2",
+    "terser": "^5.14.1",
+    "typescript": "^5.3.3"
   },
   "dependencies": {
-    "markdown-it-deflist": "^2.1.0",
-    "terser": "^5.14.1"
+    "markdown-it-deflist": "^2.1.0"
   }
 }
