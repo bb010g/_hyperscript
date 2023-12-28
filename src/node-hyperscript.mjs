@@ -1,16 +1,18 @@
 #!/usr/bin/env node
-'use strict';
 
-var fs = require('node:fs');
-var path = require('node:path');
-var _hyperscript = require('./_hyperscript.js');
+import fs from 'node:fs';
+import { createRequire } from 'node:module';
+import path from 'node:path';
+import _hyperscript from './_hyperscript.mjs';
+
+const nodeRequire = /*@__PURE__*/ createRequire(import.meta.url);
 
 /**
  * File extension for _hyperscript files
  */
 const hsExt = '._hs';
 
-global.require = require; // Allow importing modules from within hyperscript
+global.require = nodeRequire; // Allow importing modules from within hyperscript
 
 /**
  * 
@@ -48,7 +50,7 @@ _hyperscript.addFeature('require', (parser, runtime, tokens) => {
             let mod;
             if (id.endsWith(hsExt)) mod = run(id);
             if (fs.existsSync(id + hsExt)) mod = run(id + hsExt);
-            else mod = require(id);
+            else mod = nodeRequire(id);
             runtime.assignToNamespace(target, [], name, mod);
             //console.log(id, name, mod.toString(), target.hyperscriptFeatures);
         }

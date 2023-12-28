@@ -909,6 +909,7 @@ class Tokens {
     }
 
     /**
+     * @this {*}
      * @returns {string}
      */
     static sourceFor = function () {
@@ -916,6 +917,7 @@ class Tokens {
     }
 
     /**
+     * @this {*}
      * @returns {string}
      */
     static lineFor = function () {
@@ -1694,7 +1696,7 @@ class Runtime {
             return new Promise((resolve, reject) => {
                 args = this.wrapArrays(args);
                 Promise.all(args)
-                    .then(function (values) {
+                    .then((values) => {
                         if (wrappedAsyncs) {
                             this.unwrapAsyncs(values);
                         }
@@ -2013,7 +2015,9 @@ class Runtime {
     * @returns {boolean}
     */
     isReservedWord(str) {
-        return ["meta", "it", "result", "locals", "event", "target", "detail", "sender", "body"].includes(str)
+        return str === "meta" || str === "it" || str === "result" || str === "locals" ||
+            str === "event" || str === "target" || str === "detail" || str === "sender" ||
+            str === "body";
     }
 
     /**
@@ -2406,7 +2410,7 @@ const CookieJar = new Proxy({}, {
         } else if (prop === 'clearAll') {
             return clearAllCookies;
         } else if (typeof prop === "string") {
-            if (!isNaN(prop)) {
+            if (!isNaN(Number(prop))) {
                 return getCookiesAsArray()[parseInt(prop)];
 
             } else {
@@ -2423,6 +2427,9 @@ const CookieJar = new Proxy({}, {
         }
     },
     set(target, prop, value) {
+        if ('symbol' === typeof prop) {
+            return false;
+        }
         var finalValue = null;
         if ('string' === typeof value) {
             finalValue = encodeURIComponent(value);
@@ -2468,7 +2475,7 @@ class Context {
             owner: owner,
             feature: feature,
             iterators: {},
-            ctx: this
+            ctx: /** @type {Context} */(this),
         };
         this.locals = {
             cookies:CookieJar
@@ -4853,8 +4860,8 @@ function hyperscriptCoreGrammar(parser) {
                 });
                 var result = func.apply(globalScope, args);
                 if (result && typeof result.then === "function") {
-                    return new Promise(function (resolve) {
-                        result.then(function (actualResult) {
+                    return new Promise((resolve) => {
+                        result.then((actualResult) => {
                             context.result = actualResult;
                             resolve(runtime.findNext(this, context));
                         });
@@ -6127,9 +6134,16 @@ function hyperscriptCoreGrammar(parser) {
                             reason: reason,
                         });
                         throw reason;
-                    }).finally(function(){
-                        context.me.removeEventListener('fetch:abort', abortListener);
-                    });
+                    }).then(
+                        function (result) {
+                            context.me.removeEventListener('fetch:abort', abortListener);
+                            return result;
+                        },
+                        function (reason) {
+                            context.me.removeEventListener('fetch:abort', abortListener);
+                            throw reason;
+                        }
+                    );
             },
         };
         return fetchCmd;
@@ -6746,8 +6760,8 @@ function hyperscriptWebGrammar(parser) {
                 var forExpr = parser.requireElement("implicitMeTarget", tokens);
             }
 
-            if (weAreTakingClasses) {
-                var takeCmd = {
+            var takeCmd = weAreTakingClasses ?
+                {
                     classRefs: classRefs,
                     from: fromExpr,
                     forElt: forExpr,
@@ -6771,10 +6785,7 @@ function hyperscriptWebGrammar(parser) {
                         });
                         return runtime.findNext(this, context);
                     },
-                };
-                return takeCmd;
-            } else {
-                var takeCmd = {
+                } : {
                     attributeRef: attributeRef,
                     from: fromExpr,
                     forElt: forExpr,
@@ -6795,8 +6806,7 @@ function hyperscriptWebGrammar(parser) {
                         return runtime.findNext(this, context);
                     },
                 };
-                return takeCmd;
-            }
+            return takeCmd;
         }
     });
 
@@ -7616,7 +7626,7 @@ function browserInit() {
  * @property {(keyword: string, definition: ParseRule) => void} addLeafExpression
  * @property {(keyword: string, definition: ParseRule) => void} addIndirectExpression
  *
- * @property {(src: string, ctx?: Partial<Context>) => any} evaluate
+ * @property {(src: string, ctx?: Partial<Context>, args?: Object) => any} evaluate
  * @property {(src: string) => ASTNode} parse
  * @property {(node: Element) => void} processNode
  *

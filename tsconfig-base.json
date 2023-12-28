@@ -1,0 +1,27 @@
+{
+    "compilerOptions": {
+        "composite": true,
+        "outDir": "dist",
+        "rootDir": ".",
+
+        "allowImportingTsExtensions": false,
+        "allowJs": true,
+        "checkJs": true,
+        "verbatimModuleSyntax": true,
+
+        "module": "ES2015",
+        "target": "ES2015",
+
+        "declaration": true,
+        "declarationMap": true,
+        "emitDeclarationOnly": true,
+        "noEmitOnError": true,
+        "pretty": true,
+        "sourceMap": true,
+
+        "strict": false,
+        "noImplicitAny": false,
+        "noImplicitThis": true,
+        "strictNullChecks": false
+    }
+}

@@ -1,15 +1,18 @@
 #!/usr/bin/env node
 
-const _hyperscript = require('./_hyperscript.js')
-const fs = require('fs');
-const path = require('path')
+import fs from 'node:fs';
+import { createRequire } from 'node:module';
+import path from 'node:path';
+import _hyperscript from './_hyperscript.mjs';
+
+const nodeRequire = /*@__PURE__*/ createRequire(import.meta.url);
 
 /**
  * File extension for _hyperscript files
  */
 const hsExt = '._hs';
 
-global.require = require; // Allow importing modules from within hyperscript
+global.require = nodeRequire; // Allow importing modules from within hyperscript
 
 /**
  * 
@@ -17,7 +20,7 @@ global.require = require; // Allow importing modules from within hyperscript
  */
 function run(modulePath) {
     modulePath = path.resolve(modulePath);
-    const args = { module: { dir: path.dirname(modulePath), id: modulePath } }
+    const args = { module: { dir: path.dirname(modulePath), id: modulePath } };
     return fs.promises.readFile(modulePath, { encoding: 'utf-8' })
         .then(code => _hyperscript.evaluate(code, {}, args))
         .catch(e => console.error("Cannot execute file: ", e));
@@ -35,7 +38,7 @@ _hyperscript.addFeature('require', (parser, runtime, tokens) => {
         name = tokens.requireTokenType('IDENTIFIER').value;
     } else {
         name = path.basename(id)
-            .replace(/\.[^\.]*$/, '') // remove extension
+            .replace(/\.[^\.]*$/, ''); // remove extension
     }
 
     return {
@@ -47,11 +50,11 @@ _hyperscript.addFeature('require', (parser, runtime, tokens) => {
             let mod;
             if (id.endsWith(hsExt)) mod = run(id);
             if (fs.existsSync(id + hsExt)) mod = run(id + hsExt);
-            else mod = require(id);
+            else mod = nodeRequire(id);
             runtime.assignToNamespace(target, [], name, mod);
             //console.log(id, name, mod.toString(), target.hyperscriptFeatures);
         }
     }
-})
+});
 
-run(process.argv[2])
+run(process.argv[2]);

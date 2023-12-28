@@ -1,0 +1,21 @@
+{
+    "extends": "../tsconfig-base.json",
+
+    "compilerOptions": {
+        "rootDir": ".",
+
+        "lib": ["ES2015", "DOM", "DOM.Iterable"],
+        "module": "Node16",
+        "moduleResolution": "Node16",
+        "target": "ES2022",
+        "types": ["node"]
+    },
+
+    "exclude": [],
+    "files": [],
+    "include": ["node-hyperscript.*"],
+
+    "references": [
+        { "path": "tsconfig-core.json" }
+    ]
+}

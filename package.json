@@ -30,7 +30,7 @@
     "terser:hdb": "terser -m eval -o dist/hdb.min.js dist/hdb.js",
     "terser": "npm-run-all \"terser:*\"",
     "test": "mocha-chrome test/index.html",
-    "typings": "tsc --declaration dist/_hyperscript.js --allowJs --emitDeclarationOnly --skipLibCheck",
+    "typings": "tsc --build",
     "www": "tsx scripts/www.mts"
   },
   "repository": {
@@ -43,6 +43,7 @@
   },
   "devDependencies": {
     "@11ty/eleventy": "^1.0.2",
+    "@rollup/plugin-node-resolve": "^15.2.3",
     "@rollup/plugin-replace": "^5.0.5",
     "@rollup/plugin-sucrase": "^5.0.2",
     "@rollup/plugin-terser": "^0.4.4",
