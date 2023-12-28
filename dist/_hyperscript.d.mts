@@ -1,23 +1,77 @@
 export default _hyperscript;
+export type conversions = any;
 export type DynamicConverter = (str: string, value: any) => any;
 export type Token = {
-    type?: string;
+    type?: string | undefined;
     value: string;
-    start?: number;
-    end?: number;
-    column?: number;
-    line?: number;
+    start?: number | undefined;
+    end?: number | undefined;
+    column?: number | undefined;
+    line?: number | undefined;
     /**
      * `true` if this token represents an operator
      */
-    op?: boolean;
+    op?: boolean | undefined;
     /**
      * `true` if this token is a template, for class refs, id refs, strings
      */
-    template?: boolean;
+    template?: boolean | undefined;
 };
-export type ParseRule = (parser: Parser, runtime: Runtime, tokens: Tokens, root?: any) => ASTNode | undefined;
-export type ASTNode = any;
+export type ObjectDescriptor<D> = D & ThisType<D>;
+export type ASTNode<N = {}> = {
+    isFeature?: boolean | undefined;
+    type?: string | undefined;
+    args?: any[] | undefined;
+    op?: ((context: Context, root: any, ...args: any) => any) | undefined;
+    evaluate?: ((context: Context) => any) | undefined;
+    parent?: ASTNode<{}> | undefined;
+    children?: Set<ASTNode<{}>> | undefined;
+    root?: ASTNode<{}> | undefined;
+    keyword?: string | undefined;
+    endToken?: Token | undefined;
+    next?: ASTNode<{}> | undefined;
+    resolveNext?: ((context: Context) => ASTNode) | undefined;
+    eventSource?: EventSource | undefined;
+    install?: (() => void) | undefined;
+    execute?: ((context: Context) => void) | undefined;
+    apply?: ((target: object, source: object, args?: object) => void) | undefined;
+    css?: string | undefined;
+} & N & ThisType<{
+    isFeature?: boolean | undefined;
+    type?: string | undefined;
+    args?: any[] | undefined;
+    op?: ((context: Context, root: any, ...args: any) => any) | undefined;
+    evaluate?: ((context: Context) => any) | undefined;
+    parent?: ASTNode<{}> | undefined;
+    children?: Set<ASTNode<{}>> | undefined;
+    root?: ASTNode<{}> | undefined;
+    keyword?: string | undefined;
+    endToken?: Token | undefined;
+    next?: ASTNode<{}> | undefined;
+    resolveNext?: ((context: Context) => ASTNode) | undefined;
+    eventSource?: EventSource | undefined;
+    install?: (() => void) | undefined;
+    execute?: ((context: Context) => void) | undefined;
+    apply?: ((target: object, source: object, args?: object) => void) | undefined;
+    css?: string | undefined;
+} & N>;
+export type ParseRule<N = {}> = (parser: Parser, runtime: Runtime, tokens: Tokens, root?: any) => ASTNode<N> | undefined;
+export type ContextLike = {
+    locals: {
+        [name: string]: unknown;
+    };
+    me: unknown;
+    result: unknown;
+    you: unknown;
+    meta?: {
+        context?: {
+            detail?: unknown;
+        } | undefined;
+        lexer?: Lexer | undefined;
+        parser?: Parser | undefined;
+        runtime?: Runtime | undefined;
+    } | undefined;
+};
 export type HyperscriptAPI = {
     config: {
         attributes: string;
@@ -25,6 +79,7 @@ export type HyperscriptAPI = {
         disableSelector: string;
         conversions: typeof conversions;
     };
+    use: (plugin: (_hyperscript: HyperscriptAPI) => void) => void;
     internals: {
         lexer: Lexer;
         Lexer: typeof Lexer;
@@ -32,6 +87,7 @@ export type HyperscriptAPI = {
         Parser: typeof Parser;
         runtime: Runtime;
         Runtime: typeof Runtime;
+        Tokens: typeof Tokens;
     };
     ElementCollection: typeof ElementCollection;
     addFeature: (keyword: string, definition: ParseRule) => void;
@@ -41,77 +97,94 @@ export type HyperscriptAPI = {
     evaluate: (src: string, ctx?: Partial<Context>, args?: any) => any;
     parse: (src: string) => ASTNode;
     processNode: (node: Element) => void;
+    version: string;
     browserInit: () => void;
 };
 export type Hyperscript = HyperscriptAPI & ((src: string, ctx?: Partial<Context>) => any);
+declare const _hyperscript: any;
 /**
- * @typedef {Object} HyperscriptAPI
- *
- * @property {Object} config
- * @property {string} config.attributes
- * @property {string} config.defaultTransition
- * @property {string} config.disableSelector
- * @property {typeof conversions} config.conversions
- *
- * @property {Object} internals
- * @property {Lexer} internals.lexer
- * @property {typeof Lexer} internals.Lexer
- * @property {Parser} internals.parser
- * @property {typeof Parser} internals.Parser
- * @property {Runtime} internals.runtime
- * @property {typeof Runtime} internals.Runtime
- *
- * @property {typeof ElementCollection} ElementCollection
- *
- * @property {(keyword: string, definition: ParseRule) => void} addFeature
- * @property {(keyword: string, definition: ParseRule) => void} addCommand
- * @property {(keyword: string, definition: ParseRule) => void} addLeafExpression
- * @property {(keyword: string, definition: ParseRule) => void} addIndirectExpression
- *
- * @property {(src: string, ctx?: Partial<Context>, args?: Object) => any} evaluate
- * @property {(src: string) => ASTNode} parse
- * @property {(node: Element) => void} processNode
- *
- * @property {() => void} browserInit
- *
- *
- * @typedef {HyperscriptAPI & ((src: string, ctx?: Partial<Context>) => any)} Hyperscript
+ * @typedef {object} ContextLike
+ * @property {{[name: string]: unknown}} locals
+ * @property {unknown} me
+ * @property {unknown} result
+ * @property {unknown} you
+ * @property {object} [meta]
+ * @property {object} [meta.context]
+ * @property {unknown} [meta.context.detail]
+ * @property {Lexer} [meta.lexer]
+ * @property {Parser} [meta.parser]
+ * @property {Runtime} [meta.runtime]
  */
 /**
- * @type {Hyperscript}
+ * @extends ContextLike
  */
-declare const _hyperscript: Hyperscript;
+declare class Context {
+    /**
+    * @param {*} owner
+    * @param {*} feature
+    * @param {*} hyperscriptTarget
+    * @param {*} event
+    * @param {Runtime} runtime
+    */
+    constructor(owner: any, feature: any, hyperscriptTarget: any, event: any, runtime: Runtime);
+    meta: {
+        parser: Parser;
+        lexer: Lexer;
+        runtime: Runtime;
+        owner: any;
+        feature: any;
+        iterators: {};
+        ctx: Context;
+    };
+    locals: {
+        cookies: {};
+    };
+    me: any;
+    you: any;
+    result: any;
+    event: any;
+    target: any;
+    detail: any;
+    sender: any;
+    body: HTMLElement | null;
+}
 /**
+ * @template D
+ * @typedef {D & ThisType<D>} ObjectDescriptor
+ */
+/**
+ * @template [N={}]
+ * @typedef {ObjectDescriptor<{
+ *     isFeature?: boolean;
+ *     type?: string;
+ *     args?: any[];
+ *     op?: (context: Context, root: any, ...args: any) => any;
+ *     evaluate?: (context: Context) => any;
+ *     parent?: ASTNode;
+ *     children?: Set<ASTNode>;
+ *     root?: ASTNode;
+ *     keyword?: string;
+ *     endToken?: Token;
+ *     next?: ASTNode;
+ *     resolveNext?: (context: Context) => ASTNode;
+ *     eventSource?: EventSource;
+ *     install?: () => void;
+ *     execute?: (context: Context) => void;
+ *     apply?: (target: object, source: object, args?: object) => void;
+ *     css?: string;
+ * } & N>} ASTNode
+ */
+/**
+ * @template [N={}]
  * @callback ParseRule
  * @param {Parser} parser
  * @param {Runtime} runtime
  * @param {Tokens} tokens
  * @param {*} [root]
- * @returns {ASTNode | undefined}
- *
- * @typedef {Object} ASTNode
- * @member {boolean} isFeature
- * @member {string} type
- * @member {any[]} args
- * @member {(this: ASTNode, ctx:Context, root:any, ...args:any) => any} op
- * @member {(this: ASTNode, context?:Context) => any} evaluate
- * @member {ASTNode} parent
- * @member {Set<ASTNode>} children
- * @member {ASTNode} root
- * @member {String} keyword
- * @member {Token} endToken
- * @member {ASTNode} next
- * @member {(context:Context) => ASTNode} resolveNext
- * @member {EventSource} eventSource
- * @member {(this: ASTNode) => void} install
- * @member {(this: ASTNode, context:Context) => void} execute
- * @member {(this: ASTNode, target: object, source: object, args?: Object) => void} apply
- *
- *
+ * @returns {ASTNode<N> | undefined}
  */
 declare class Parser {
     /**
-     *
      * @param {Tokens} tokens
      * @returns string
      */
@@ -121,93 +194,176 @@ declare class Parser {
      * @param {string} [message]
      * @returns {never}
      */
-    static raiseParseError(tokens: Tokens, message?: string): never;
+    static raiseParseError(tokens: Tokens, message?: string | undefined): never;
     /**
-     *
      * @param {Runtime} runtime
      */
     constructor(runtime: Runtime);
     runtime: Runtime;
     possessivesDisabled: boolean;
-    use(plugin: any): this;
-    /** @type {Object<string,ParseRule>} */
+    /**
+     * @template {Parser} This
+     * @this {This}
+     * @param {(that: This) => void} plugin
+     * @returns {This}
+     */
+    use<This extends Parser>(this: This, plugin: (that: This) => void): This;
+    /** @type {{[name: string]: ParseRule}} */
     GRAMMAR: {
-        [x: string]: ParseRule;
+        [name: string]: ParseRule<{}>;
     };
-    /** @type {Object<string,ParseRule>} */
+    /** @type {{[name: string]: ParseRule}} */
     COMMANDS: {
-        [x: string]: ParseRule;
+        [name: string]: ParseRule<{}>;
     };
-    /** @type {Object<string,ParseRule>} */
+    /** @type {{[name: string]: ParseRule}} */
     FEATURES: {
-        [x: string]: ParseRule;
+        [name: string]: ParseRule<{}>;
     };
     /** @type {string[]} */
     LEAF_EXPRESSIONS: string[];
     /** @type {string[]} */
     INDIRECT_EXPRESSIONS: string[];
     /**
-     * @param {*} parseElement
-     * @param {*} start
-     * @param {Tokens} tokens
+     * @typedef {object} ParseElement
+     * @property {Token} startToken
+     * @property {Token} [endToken]
+     * @property {() => string} sourceFor
+     * @property {() => string} lineFor
+     * @property {string} programSource
      */
-    initElt(parseElement: any, start: any, tokens: Tokens): void;
     /**
-     * @param {string} type
+     * @template {Partial<ParseElement>} T
+     * @param {T} parseElement
+     * @param {Token} start
      * @param {Tokens} tokens
-     * @param {ASTNode?} root
-     * @returns {ASTNode}
+     * @returns {asserts parseElement is T & ParseElement}
      */
-    parseElement(type: string, tokens: Tokens, root?: ASTNode | null): ASTNode;
+    initElt<T extends Partial<{
+        startToken: Token;
+        endToken?: Token | undefined;
+        sourceFor: () => string;
+        lineFor: () => string;
+        programSource: string;
+    }>>(parseElement: T, start: Token, tokens: Tokens): asserts parseElement is T & {
+        startToken: Token;
+        endToken?: Token | undefined;
+        sourceFor: () => string;
+        lineFor: () => string;
+        programSource: string;
+    };
     /**
-     * @param {string} type
+     * @template {keyof typeof this.GRAMMAR} [Type=string]
+     * @param {Type} type
+     * @param {Tokens} tokens
+     * @param {ASTNode} [root]
+     * @returns {ASTNode<ParseElement> | undefined}
+     */
+    parseElement<Type extends string | number = string>(type: Type, tokens: Tokens, root?: ASTNode<{}> | undefined): ASTNode<{
+        startToken: Token;
+        endToken?: Token | undefined;
+        sourceFor: () => string;
+        lineFor: () => string;
+        programSource: string;
+    }> | undefined;
+    /**
+     * @template {string} Type
+     * @param {Type} type
      * @param {Tokens} tokens
      * @param {string} [message]
      * @param {*} [root]
-     * @returns {ASTNode}
+     * @returns {ReturnType<typeof this.GRAMMAR[Type]> & ParseElement}
      */
-    requireElement(type: string, tokens: Tokens, message?: string, root?: any): ASTNode;
+    requireElement<Type_1 extends string>(type: Type_1, tokens: Tokens, message?: string | undefined, root?: any): {
+        isFeature?: boolean | undefined;
+        type?: string | undefined;
+        args?: any[] | undefined;
+        op?: ((context: Context, root: any, ...args: any) => any) | undefined;
+        evaluate?: ((context: Context) => any) | undefined;
+        parent?: ASTNode<{}> | undefined;
+        children?: Set<ASTNode<{}>> | undefined;
+        root?: ASTNode<{}> | undefined;
+        keyword?: string | undefined;
+        endToken?: Token | undefined;
+        next?: ASTNode<{}> | undefined;
+        resolveNext?: ((context: Context) => ASTNode) | undefined;
+        eventSource?: EventSource | undefined;
+        install?: (() => void) | undefined;
+        execute?: ((context: Context) => void) | undefined;
+        apply?: ((target: object, source: object, args?: object) => void) | undefined;
+        css?: string | undefined;
+    } & ThisType<{
+        isFeature?: boolean | undefined;
+        type?: string | undefined;
+        args?: any[] | undefined;
+        op?: ((context: Context, root: any, ...args: any) => any) | undefined;
+        evaluate?: ((context: Context) => any) | undefined;
+        parent?: ASTNode<{}> | undefined;
+        children?: Set<ASTNode<{}>> | undefined;
+        root?: ASTNode<{}> | undefined;
+        keyword?: string | undefined;
+        endToken?: Token | undefined;
+        next?: ASTNode<{}> | undefined;
+        resolveNext?: ((context: Context) => ASTNode) | undefined;
+        eventSource?: EventSource | undefined;
+        install?: (() => void) | undefined;
+        execute?: ((context: Context) => void) | undefined;
+        apply?: ((target: object, source: object, args?: object) => void) | undefined;
+        css?: string | undefined;
+    }> & {
+        startToken: Token;
+        endToken?: Token | undefined;
+        sourceFor: () => string;
+        lineFor: () => string;
+        programSource: string;
+    };
     /**
      * @param {string[]} types
      * @param {Tokens} tokens
-     * @returns {ASTNode}
+     * @returns {ASTNode | undefined}
      */
-    parseAnyOf(types: string[], tokens: Tokens): ASTNode;
+    parseAnyOf(types: string[], tokens: Tokens): ASTNode | undefined;
     /**
-     * @param {string} name
-     * @param {ParseRule} definition
+     * @template {string} [Name=string]
+     * @param {Name} name
+     * @param {typeof this.GRAMMAR[Name]} definition
      */
-    addGrammarElement(name: string, definition: ParseRule): void;
+    addGrammarElement<Name extends string = string>(name: Name, definition: ParseRule<{}>): void;
     /**
+     * @template N
      * @param {string} keyword
-     * @param {ParseRule} definition
+     * @param {ParseRule<N>} definition
      */
-    addCommand(keyword: string, definition: ParseRule): void;
+    addCommand<N>(keyword: string, definition: ParseRule<N>): void;
     /**
-     * @param {string} keyword
-     * @param {ParseRule} definition
+     * @template {string} Keyword
+     * @param {Keyword} keyword
+     * @param {typeof this.GRAMMAR[`${Keyword}Feature`] & (typeof this.FEATURES)[Keyword]} definition
      */
-    addFeature(keyword: string, definition: ParseRule): void;
+    addFeature<Keyword extends string>(keyword: Keyword, definition: ParseRule<{}>): void;
     /**
-     * @param {string} name
-     * @param {ParseRule} definition
+     * @template {string} [Name=string]
+     * @param {Name} name
+     * @param {typeof this.GRAMMAR[Name]} definition
      */
-    addLeafExpression(name: string, definition: ParseRule): void;
+    addLeafExpression<Name_1 extends string = string>(name: Name_1, definition: ParseRule<{}>): void;
     /**
-     * @param {string} name
-     * @param {ParseRule} definition
+     * @template {string} [Name=string]
+     * @param {Name} name
+     * @param {typeof this.GRAMMAR[Name]} definition
      */
-    addIndirectExpression(name: string, definition: ParseRule): void;
+    addIndirectExpression<Name_2 extends string = string>(name: Name_2, definition: ParseRule<{}>): void;
     /**
      * @param {Tokens} tokens
      * @param {string} [message]
+     * @returns {never}
      */
-    raiseParseError(tokens: Tokens, message?: string): void;
+    raiseParseError(tokens: Tokens, message?: string | undefined): never;
     /**
      * @param {Tokens} tokens
-     * @returns {ASTNode}
+     * @returns {ASTNode | undefined}
      */
-    parseHyperScript(tokens: Tokens): ASTNode;
+    parseHyperScript(tokens: Tokens): ASTNode | undefined;
     /**
      * @param {ASTNode | undefined} elt
      * @param {ASTNode} parent
@@ -241,19 +397,18 @@ declare class Parser {
 declare class Runtime {
     static HALT: {};
     /**
-     *
      * @param {Lexer} [lexer]
      * @param {Parser} [parser]
      */
-    constructor(lexer?: Lexer, parser?: Parser);
-    lexer: Lexer;
-    parser: Parser;
+    constructor(lexer?: Lexer | undefined, parser?: Parser | undefined);
+    /** @type {Lexer} */ lexer: Lexer;
+    /** @type {Parser} */ parser: Parser;
     /**
-     * @param {HTMLElement} elt
+     * @param {Element} elt
      * @param {string} selector
      * @returns boolean
      */
-    matchesSelector(elt: HTMLElement, selector: string): any;
+    matchesSelector(elt: Element, selector: string): any;
     /**
      * @param {string} eventName
      * @param {Object} [detail]
@@ -267,7 +422,7 @@ declare class Runtime {
      * @param {Element} [sender]
      * @returns {boolean}
      */
-    triggerEvent(elt: Element, eventName: string, detail?: any, sender?: Element): boolean;
+    triggerEvent(elt: Element, eventName: string, detail?: any, sender?: Element | undefined): boolean;
     /**
      * isArrayLike returns `true` if the provided value is an array or
      * a NodeList (which is close enough to being an array for our purposes).
@@ -383,27 +538,69 @@ declare class Runtime {
     parse(src: string): ASTNode;
     /**
      *
-     * @param {ASTNode} elt
+     * @param {ASTNode & ParseElement & Required<Pick<ASTNode, "evaluate">>} elt
      * @param {Context} ctx
      * @returns {any}
      */
-    evaluateNoPromise(elt: ASTNode, ctx: Context): any;
+    evaluateNoPromise(elt: {
+        isFeature?: boolean | undefined;
+        type?: string | undefined;
+        args?: any[] | undefined;
+        op?: ((context: Context, root: any, ...args: any) => any) | undefined;
+        evaluate?: ((context: Context) => any) | undefined;
+        parent?: ASTNode<{}> | undefined;
+        children?: Set<ASTNode<{}>> | undefined;
+        root?: ASTNode<{}> | undefined;
+        keyword?: string | undefined;
+        endToken?: Token | undefined;
+        next?: ASTNode<{}> | undefined;
+        resolveNext?: ((context: Context) => ASTNode<{}>) | undefined;
+        eventSource?: EventSource | undefined;
+        install?: (() => void) | undefined;
+        execute?: ((context: Context) => void) | undefined;
+        apply?: ((target: any, source: any, args?: any) => void) | undefined;
+        css?: string | undefined;
+    } & ThisType<{
+        isFeature?: boolean | undefined;
+        type?: string | undefined;
+        args?: any[] | undefined;
+        op?: ((context: Context, root: any, ...args: any) => any) | undefined;
+        evaluate?: ((context: Context) => any) | undefined;
+        parent?: ASTNode<{}> | undefined;
+        children?: Set<ASTNode<{}>> | undefined;
+        root?: ASTNode<{}> | undefined;
+        keyword?: string | undefined;
+        endToken?: Token | undefined;
+        next?: ASTNode<{}> | undefined;
+        resolveNext?: ((context: Context) => ASTNode<{}>) | undefined;
+        eventSource?: EventSource | undefined;
+        install?: (() => void) | undefined;
+        execute?: ((context: Context) => void) | undefined;
+        apply?: ((target: any, source: any, args?: any) => void) | undefined;
+        css?: string | undefined;
+    }> & {
+        startToken: Token;
+        endToken?: Token | undefined;
+        sourceFor: () => string;
+        lineFor: () => string;
+        programSource: string;
+    } & Required<Pick<ASTNode<{}>, "evaluate">>, ctx: Context): any;
     /**
     * @param {string} src
     * @param {Partial<Context>} [ctx]
     * @param {Object} [args]
     * @returns {any}
     */
-    evaluate(src: string, ctx?: Partial<Context>, args?: any): any;
+    evaluate(src: string, ctx?: Partial<Context> | undefined, args?: any): any;
     /**
-    * @param {HTMLElement} elt
+    * @param {Element | Document} elt
     */
-    processNode(elt: HTMLElement): void;
+    processNode(elt: Element | Document): void;
     /**
     * @param {Element} elt
     * @param {Element} [target]
     */
-    initElement(elt: Element, target?: Element): void;
+    initElement(elt: Element, target?: Element | undefined): void;
     internalDataMap: WeakMap<object, any>;
     /**
     * @param {Element} elt
@@ -416,7 +613,7 @@ declare class Runtime {
     * @param {boolean} [nullOk]
     * @returns {boolean}
     */
-    typeCheck(value: any, typeString: string, nullOk?: boolean): boolean;
+    typeCheck(value: any, typeString: string, nullOk?: boolean | undefined): boolean;
     getElementScope(context: any): any;
     /**
     * @param {string} str
@@ -424,17 +621,24 @@ declare class Runtime {
     */
     isReservedWord(str: string): boolean;
     /**
-    * @param {any} context
-    * @returns {boolean}
+    * @param {ContextLike} context
+    * @returns {context is Context}
     */
-    isHyperscriptContext(context: any): boolean;
+    isHyperscriptContext(context: ContextLike): context is Context;
     /**
     * @param {string} str
-    * @param {Context} context
+    * @param {ContextLike} context
+    * @param {string} [type]
     * @returns {any}
     */
-    resolveSymbol(str: string, context: Context, type: any): any;
-    setSymbol(str: any, context: any, type: any, value: any): void;
+    resolveSymbol(str: string, context: ContextLike, type?: string | undefined): any;
+    /**
+     * @param {string} str
+     * @param {ContextLike} context
+     * @param {string | undefined} type
+     * @param {any} value
+     */
+    setSymbol(str: string, context: ContextLike, type: string | undefined, value: any): void;
     /**
     * @param {ASTNode} command
     * @param {Context} context
@@ -539,29 +743,52 @@ declare class Runtime {
  */
 declare class Tokens {
     /**
-     * @this {*}
+     * @this {ParseElement}
      * @returns {string}
      */
-    static sourceFor: (this: any) => string;
+    static sourceFor: (this: {
+        startToken: Token;
+        endToken?: Token | undefined;
+        sourceFor: () => string;
+        lineFor: () => string;
+        programSource: string;
+    }) => string;
     /**
-     * @this {*}
+     * @this {ParseElement}
      * @returns {string}
      */
-    static lineFor: (this: any) => string;
-    constructor(tokens: any, consumed: any, source: any);
-    tokens: any;
-    consumed: any;
-    source: any;
-    get list(): any;
-    /** @type Token | null */
-    _lastConsumed: Token | null;
+    static lineFor: (this: {
+        startToken: Token;
+        endToken?: Token | undefined;
+        sourceFor: () => string;
+        lineFor: () => string;
+        programSource: string;
+    }) => string;
+    /**
+     * @param {Token[]} tokens
+     * @param {Token[]} consumed
+     * @param {string} source
+     */
+    constructor(tokens: Token[], consumed: Token[], source: string);
+    /** @type {Token[]} */
+    tokens: Token[];
+    /** @type {Token[]} */
+    consumed: Token[];
+    /** @type {string} */
+    source: string;
+    /**
+     * @returns {Token[]}
+     */
+    get list(): Token[];
+    /** @type Token | undefined */
+    _lastConsumed: Token | undefined;
     consumeWhitespace(): void;
     /**
      * @param {Tokens} tokens
-     * @param {*} error
+     * @param {string} error
      * @returns {never}
      */
-    raiseError(tokens: Tokens, error: any): never;
+    raiseError(tokens: Tokens, error: string): never;
     /**
      * @param {string} value
      * @returns {Token}
@@ -571,21 +798,19 @@ declare class Tokens {
      * @param {string} op1
      * @param {string} [op2]
      * @param {string} [op3]
-     * @returns {Token | void}
+     * @returns {Token | undefined}
      */
-    matchAnyOpToken(op1: string, op2?: string, op3?: string, ...args: any[]): Token | void;
+    matchAnyOpToken(op1: string, op2?: string | undefined, op3?: string | undefined, ...args: any[]): Token | undefined;
     /**
-     * @param {string} op1
-     * @param {string} [op2]
-     * @param {string} [op3]
-     * @returns {Token | void}
+     * @param {...string} op1
+     * @returns {Token | undefined}
      */
-    matchAnyToken(op1: string, op2?: string, op3?: string, ...args: any[]): Token | void;
+    matchAnyToken(...args: string[]): Token | undefined;
     /**
      * @param {string} value
-     * @returns {Token | void}
+     * @returns {Token | undefined}
      */
-    matchOpToken(value: string): Token | void;
+    matchOpToken(value: string): Token | undefined;
     /**
      * @param {string} type1
      * @param {string} [type2]
@@ -593,28 +818,34 @@ declare class Tokens {
      * @param {string} [type4]
      * @returns {Token}
      */
-    requireTokenType(type1: string, type2?: string, type3?: string, type4?: string): Token;
+    requireTokenType(type1: string, type2?: string | undefined, type3?: string | undefined, type4?: string | undefined): Token;
     /**
      * @param {string} type1
      * @param {string} [type2]
      * @param {string} [type3]
      * @param {string} [type4]
-     * @returns {Token | void}
+     * @returns {Token | undefined}
      */
-    matchTokenType(type1: string, type2?: string, type3?: string, type4?: string): Token | void;
+    matchTokenType(type1: string, type2?: string | undefined, type3?: string | undefined, type4?: string | undefined): Token | undefined;
     /**
      * @param {string} value
      * @param {string} [type]
      * @returns {Token}
      */
-    requireToken(value: string, type?: string): Token;
-    peekToken(value: any, peek: any, type: any): any;
+    requireToken(value: string, type?: string | undefined): Token;
+    /**
+     * @param {string} value
+     * @param {number} [peek]
+     * @param {string} [type]
+     * @returns {Token | undefined}
+     */
+    peekToken(value: string, peek?: number | undefined, type?: string | undefined): Token | undefined;
     /**
      * @param {string} value
      * @param {string} [type]
-     * @returns {Token | void}
+     * @returns {Token | undefined}
      */
-    matchToken(value: string, type?: string): Token | void;
+    matchToken(value: string, type?: string | undefined): Token | undefined;
     /**
      * @returns {Token}
      */
@@ -624,7 +855,7 @@ declare class Tokens {
      * @param {string | null} [type]
      * @returns {Token[]}
      */
-    consumeUntil(value: string | null, type?: string | null): Token[];
+    consumeUntil(value: string | null, type?: string | null | undefined): Token[];
     /**
      * @returns {string}
      */
@@ -639,31 +870,39 @@ declare class Tokens {
      * @param {boolean} [dontIgnoreWhitespace]
      * @returns {Token}
      */
-    token(n: number, dontIgnoreWhitespace?: boolean): Token;
+    token(n: number, dontIgnoreWhitespace?: boolean | undefined): Token;
     /**
      * @returns {Token}
      */
     currentToken(): Token;
     /**
-     * @returns {Token | null}
+     * @returns {Token | undefined}
      */
-    lastMatch(): Token | null;
-    follows: any[];
-    pushFollow(str: any): void;
+    lastMatch(): Token | undefined;
+    /** @type {string[]} */
+    follows: string[];
+    /**
+     * @param {string} str
+     */
+    pushFollow(str: string): void;
     popFollow(): void;
-    clearFollows(): any[];
-    restoreFollows(f: any): void;
+    clearFollows(): string[];
+    /**
+     * @param {string[]} f
+     */
+    restoreFollows(f: string[]): void;
 }
-/**
- * @type {Object}
- * @property {DynamicConverter[]} dynamicResolvers
- *
- * @callback DynamicConverter
- * @param {String} str
- * @param {*} value
- * @returns {*}
- */
-declare const conversions: any;
+declare namespace conversions {
+    let dynamicResolvers: DynamicConverter[];
+    function String(val: any): any;
+    function Int(val: string): number;
+    function Float(val: string): number;
+    function Number(val: any): number;
+    function Date(val: string | number | Date): Date;
+    function Array<T>(val: Iterable<T> | ArrayLike<T>): T[];
+    function JSON(val: any): string;
+    function Object(val: any): any;
+}
 declare class Lexer {
     static OP_TABLE: {
         "+": string;
@@ -746,7 +985,7 @@ declare class Lexer {
      * @param {boolean} [dollarIsOp]
      * @returns boolean
      */
-    static isIdentifierChar(c: string, dollarIsOp?: boolean): boolean;
+    static isIdentifierChar(c: string, dollarIsOp?: boolean | undefined): boolean;
     /**
      * @param {string} c
      * @returns boolean
@@ -762,13 +1001,13 @@ declare class Lexer {
      * @param {boolean} [template]
      * @returns {Tokens}
      */
-    static tokenize(string: string, template?: boolean): Tokens;
+    static tokenize(string: string, template?: boolean | undefined): Tokens;
     /**
      * @param {string} string
      * @param {boolean} [template]
      * @returns {Tokens}
      */
-    tokenize(string: string, template?: boolean): Tokens;
+    tokenize(string: string, template?: boolean | undefined): Tokens;
 }
 declare class ElementCollection {
     constructor(css: any, relativeToElement: any, escape: any);
@@ -782,34 +1021,5 @@ declare class ElementCollection {
     get length(): number;
     selectMatches(): NodeListOf<any>;
     [Symbol.iterator](): IterableIterator<any>;
-}
-declare class Context {
-    /**
-    * @param {*} owner
-    * @param {*} feature
-    * @param {*} hyperscriptTarget
-    * @param {*} event
-    */
-    constructor(owner: any, feature: any, hyperscriptTarget: any, event: any, runtime: any);
-    meta: {
-        parser: any;
-        lexer: any;
-        runtime: any;
-        owner: any;
-        feature: any;
-        iterators: {};
-        ctx: Context;
-    };
-    locals: {
-        cookies: {};
-    };
-    me: any;
-    you: any;
-    result: any;
-    event: any;
-    target: any;
-    detail: any;
-    sender: any;
-    body: HTMLElement;
 }
 //# sourceMappingURL=_hyperscript.d.mts.map

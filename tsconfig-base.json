@@ -19,9 +19,11 @@
         "pretty": true,
         "sourceMap": true,
 
+        "verbatimModuleSyntax": true,
+
         "strict": false,
         "noImplicitAny": false,
         "noImplicitThis": true,
-        "strictNullChecks": false
+        "strictNullChecks": true
     }
 }

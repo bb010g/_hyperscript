@@ -2,8 +2,7 @@
 const globalScope = typeof globalThis !== 'undefined' ? globalThis : self;
 
 /**
- * @type {Object}
- * @property {DynamicConverter[]} dynamicResolvers
+ * @typedef {Object} conversions
  *
  * @callback DynamicConverter
  * @param {String} str
@@ -11,6 +10,7 @@ const globalScope = typeof globalThis !== 'undefined' ? globalThis : self;
  * @returns {*}
  */
 const conversions = {
+    /** @type {DynamicConverter[]} */
     dynamicResolvers: [
         function(str, value){
             if (str === "Fixed") {
@@ -21,6 +21,9 @@ const conversions = {
             }
         }
     ],
+    /**
+     * @param {*} val 
+     */
     String: function (val) {
         if (val.toString) {
             return val.toString();
@@ -28,24 +31,47 @@ const conversions = {
             return "" + val;
         }
     },
+    /**
+     * @param {string} val
+     */
     Int: function (val) {
         return parseInt(val);
     },
+    /**
+     * @param {string} val
+     */
     Float: function (val) {
         return parseFloat(val);
     },
+    /**
+     * @param {*} val
+     */
     Number: function (val) {
         return Number(val);
     },
+    /**
+     * @param {string | number | Date} val
+     */
     Date: function (val) {
         return new Date(val);
     },
+    /**
+     * @template T
+     * @param {Iterable<T> | ArrayLike<T>} val
+     * @returns {T[]}
+     */
     Array: function (val) {
         return Array.from(val);
     },
+    /**
+     * @param {*} val
+     */
     JSON: function (val) {
         return JSON.stringify(val);
     },
+    /**
+     * @param {*} val
+     */
     Object: function (val) {
         if (val instanceof String) {
             val = val.toString();
@@ -260,7 +286,7 @@ class Lexer {
                     } else {
                         tokens.push(consumeOp());
                     }
-                } else if (Lexer.OP_TABLE[currentChar()]) {
+                } else if (currentChar() in Lexer.OP_TABLE) {
                     if (lastToken === "$" && currentChar() === "{") {
                         templateBraceCount++;
                     }
@@ -495,7 +521,7 @@ class Lexer {
         function consumeOp() {
             var op = makeOpToken();
             var value = consumeChar(); // consume leading char
-            while (currentChar() && Lexer.OP_TABLE[value + currentChar()]) {
+            while (currentChar() && ((value + currentChar()) in Lexer.OP_TABLE)) {
                 value += consumeChar();
             }
             op.type = Lexer.OP_TABLE[value];
@@ -654,30 +680,44 @@ class Lexer {
  */
 
 class Tokens {
+    /**
+     * @param {Token[]} tokens 
+     * @param {Token[]} consumed 
+     * @param {string} source 
+     */
     constructor(tokens, consumed, source) {
+        /** @type {Token[]} */
         this.tokens = tokens;
+        /** @type {Token[]} */
         this.consumed = consumed;
+        /** @type {string} */
         this.source = source;
 
         this.consumeWhitespace(); // consume initial whitespace
     }
 
+    /**
+     * @returns {Token[]}
+     */
     get list() {
         return this.tokens
     }
 
-    /** @type Token | null */
-    _lastConsumed = null;
+    /** @type Token | undefined */
+    _lastConsumed = undefined;
 
     consumeWhitespace() {
         while (this.token(0, true).type === "WHITESPACE") {
-            this.consumed.push(this.tokens.shift());
+            var token = this.tokens.shift();
+            if (token !== undefined) {
+                this.consumed.push();
+            }
         }
     }
 
     /**
      * @param {Tokens} tokens
-     * @param {*} error
+     * @param {string} error
      * @returns {never}
      */
     raiseError(tokens, error) {
@@ -701,7 +741,7 @@ class Tokens {
      * @param {string} op1
      * @param {string} [op2]
      * @param {string} [op3]
-     * @returns {Token | void}
+     * @returns {Token | undefined}
      */
     matchAnyOpToken(op1, op2, op3) {
         for (var i = 0; i < arguments.length; i++) {
@@ -714,16 +754,14 @@ class Tokens {
     }
 
     /**
-     * @param {string} op1
-     * @param {string} [op2]
-     * @param {string} [op3]
-     * @returns {Token | void}
+     * @param {...string} op1
+     * @returns {Token | undefined}
      */
-    matchAnyToken(op1, op2, op3) {
+    matchAnyToken(op1) {
         for (var i = 0; i < arguments.length; i++) {
             var opToken = arguments[i];
             var match = this.matchToken(opToken);
-            if (match) {
+            if (match !== undefined) {
                 return match;
             }
         }
@@ -731,7 +769,7 @@ class Tokens {
 
     /**
      * @param {string} value
-     * @returns {Token | void}
+     * @returns {Token | undefined}
      */
     matchOpToken(value) {
         if (this.currentToken() && this.currentToken().op && this.currentToken().value === value) {
@@ -760,7 +798,7 @@ class Tokens {
      * @param {string} [type2]
      * @param {string} [type3]
      * @param {string} [type4]
-     * @returns {Token | void}
+     * @returns {Token | undefined}
      */
     matchTokenType(type1, type2, type3, type4) {
         if (
@@ -786,6 +824,12 @@ class Tokens {
         }
     }
 
+    /**
+     * @param {string} value
+     * @param {number} [peek]
+     * @param {string} [type]
+     * @returns {Token | undefined}
+     */
     peekToken(value, peek, type) {
         peek = peek || 0;
         type = type || "IDENTIFIER";
@@ -797,11 +841,11 @@ class Tokens {
     /**
      * @param {string} value
      * @param {string} [type]
-     * @returns {Token | void}
+     * @returns {Token | undefined}
      */
     matchToken(value, type) {
         if (this.follows.indexOf(value) !== -1) {
-            return; // disallowed token here
+            return undefined; // disallowed token here
         }
         type = type || "IDENTIFIER";
         if (this.currentToken() && this.currentToken().value === value && this.currentToken().type === type) {
@@ -814,10 +858,15 @@ class Tokens {
      */
     consumeToken() {
         var match = this.tokens.shift();
-        this.consumed.push(match);
-        this._lastConsumed = match;
+        if (match !== undefined) {
+            this.consumed.push(match);
+            this._lastConsumed = match;
+        }
         this.consumeWhitespace(); // consume any whitespace
-        return match;
+        return match !== undefined ? match : {
+            type: "EOF",
+            value: "<<<EOF>>>",
+        };
     }
 
     /**
@@ -836,7 +885,9 @@ class Tokens {
             currentToken.type !== "EOF"
         ) {
             var match = this.tokens.shift();
-            this.consumed.push(match);
+            if (match !== undefined) {
+                this.consumed.push(match);
+            }
             tokenList.push(currentToken);
             currentToken = this.token(0, true);
         }
@@ -902,30 +953,37 @@ class Tokens {
     }
 
     /**
-     * @returns {Token | null}
+     * @returns {Token | undefined}
      */
     lastMatch() {
         return this._lastConsumed;
     }
 
     /**
-     * @this {*}
+     * @this {ParseElement}
      * @returns {string}
      */
     static sourceFor = function () {
-        return this.programSource.substring(this.startToken.start, this.endToken.end);
+        var programSource = this.programSource;
+        var endToken = this.endToken;
+        return programSource.substring(this.startToken.start || 0, endToken !== undefined ? endToken.end || programSource.length : programSource.length);
     }
 
     /**
-     * @this {*}
+     * @this {ParseElement}
      * @returns {string}
      */
     static lineFor = function () {
+        // @ts-expect-error
         return this.programSource.split("\n")[this.startToken.line - 1];
     }
 
+    /** @type {string[]} */
     follows = [];
 
+    /**
+     * @param {string} str
+     */
     pushFollow(str) {
         this.follows.push(str);
     }
@@ -940,43 +998,54 @@ class Tokens {
         return tmp;
     }
 
+    /**
+     * @param {string[]} f
+     */
     restoreFollows(f) {
         this.follows = f;
     }
 }
 
 /**
+ * @template D
+ * @typedef {D & ThisType<D>} ObjectDescriptor
+ */
+
+/**
+ * @template [N={}]
+ * @typedef {ObjectDescriptor<{
+ *     isFeature?: boolean;
+ *     type?: string;
+ *     args?: any[];
+ *     op?: (context: Context, root: any, ...args: any) => any;
+ *     evaluate?: (context: Context) => any;
+ *     parent?: ASTNode;
+ *     children?: Set<ASTNode>;
+ *     root?: ASTNode;
+ *     keyword?: string;
+ *     endToken?: Token;
+ *     next?: ASTNode;
+ *     resolveNext?: (context: Context) => ASTNode;
+ *     eventSource?: EventSource;
+ *     install?: () => void;
+ *     execute?: (context: Context) => void;
+ *     apply?: (target: object, source: object, args?: object) => void;
+ *     css?: string;
+ * } & N>} ASTNode
+ */
+
+/**
+ * @template [N={}]
  * @callback ParseRule
  * @param {Parser} parser
  * @param {Runtime} runtime
  * @param {Tokens} tokens
  * @param {*} [root]
- * @returns {ASTNode | undefined}
- *
- * @typedef {Object} ASTNode
- * @member {boolean} isFeature
- * @member {string} type
- * @member {any[]} args
- * @member {(this: ASTNode, ctx:Context, root:any, ...args:any) => any} op
- * @member {(this: ASTNode, context?:Context) => any} evaluate
- * @member {ASTNode} parent
- * @member {Set<ASTNode>} children
- * @member {ASTNode} root
- * @member {String} keyword
- * @member {Token} endToken
- * @member {ASTNode} next
- * @member {(context:Context) => ASTNode} resolveNext
- * @member {EventSource} eventSource
- * @member {(this: ASTNode) => void} install
- * @member {(this: ASTNode, context:Context) => void} execute
- * @member {(this: ASTNode, target: object, source: object, args?: Object) => void} apply
- *
- *
+ * @returns {ASTNode<N> | undefined}
  */
 
 class Parser {
     /**
-     *
      * @param {Runtime} runtime
      */
     constructor(runtime) {
@@ -1031,7 +1100,7 @@ class Parser {
                     return cmd;
                 }
             }
-            return {
+            return /** @type {ASTNode<{type: "emptyCommandListCommand"}>} */({
                 type: "emptyCommandListCommand",
                 op: function(context){
                     return runtime.findNext(this, context);
@@ -1039,7 +1108,7 @@ class Parser {
                 execute: function (context) {
                     return runtime.unifiedExec(this, context);
                 }
-            }
+            });
         });
 
         this.addGrammarElement("leaf", function (parser, runtime, tokens) {
@@ -1097,18 +1166,25 @@ class Parser {
         });
     }
 
+    /**
+     * @template {Parser} This
+     * @this {This}
+     * @param {(that: This) => void} plugin
+     * @returns {This}
+     */
     use(plugin) {
         plugin(this);
-        return this
+        return this;
     }
 
-    /** @type {Object<string,ParseRule>} */
+
+    /** @type {{[name: string]: ParseRule}} */
     GRAMMAR = {};
 
-    /** @type {Object<string,ParseRule>} */
+    /** @type {{[name: string]: ParseRule}} */
     COMMANDS = {};
 
-    /** @type {Object<string,ParseRule>} */
+    /** @type {{[name: string]: ParseRule}} */
     FEATURES = {};
 
     /** @type {string[]} */
@@ -1117,9 +1193,20 @@ class Parser {
     INDIRECT_EXPRESSIONS = [];
 
     /**
-     * @param {*} parseElement
-     * @param {*} start
+     * @typedef {object} ParseElement
+     * @property {Token} startToken
+     * @property {Token} [endToken]
+     * @property {() => string} sourceFor
+     * @property {() => string} lineFor
+     * @property {string} programSource
+     */
+
+    /**
+     * @template {Partial<ParseElement>} T
+     * @param {T} parseElement
+     * @param {Token} start
      * @param {Tokens} tokens
+     * @returns {asserts parseElement is T & ParseElement}
      */
     initElt(parseElement, start, tokens) {
         parseElement.startToken = start;
@@ -1129,17 +1216,18 @@ class Parser {
     }
 
     /**
-     * @param {string} type
+     * @template {keyof typeof this.GRAMMAR} [Type=string]
+     * @param {Type} type
      * @param {Tokens} tokens
-     * @param {ASTNode?} root
-     * @returns {ASTNode}
+     * @param {ASTNode} [root]
+     * @returns {ASTNode<ParseElement> | undefined}
      */
     parseElement(type, tokens, root = undefined) {
         var elementDefinition = this.GRAMMAR[type];
-        if (elementDefinition) {
+        if (elementDefinition !== undefined) {
             var start = tokens.currentToken();
             var parseElement = elementDefinition(this, this.runtime, tokens, root);
-            if (parseElement) {
+            if (parseElement !== undefined) {
                 this.initElt(parseElement, start, tokens);
                 parseElement.endToken = parseElement.endToken || tokens.lastMatch();
                 var root = parseElement.root;
@@ -1153,11 +1241,12 @@ class Parser {
     }
 
     /**
-     * @param {string} type
+     * @template {string} Type
+     * @param {Type} type
      * @param {Tokens} tokens
      * @param {string} [message]
      * @param {*} [root]
-     * @returns {ASTNode}
+     * @returns {ReturnType<typeof this.GRAMMAR[Type]> & ParseElement}
      */
     requireElement(type, tokens, message, root) {
         var result = this.parseElement(type, tokens, root);
@@ -1169,7 +1258,7 @@ class Parser {
     /**
      * @param {string[]} types
      * @param {Tokens} tokens
-     * @returns {ASTNode}
+     * @returns {ASTNode | undefined}
      */
     parseAnyOf(types, tokens) {
         for (var i = 0; i < types.length; i++) {
@@ -1182,16 +1271,18 @@ class Parser {
     }
 
     /**
-     * @param {string} name
-     * @param {ParseRule} definition
+     * @template {string} [Name=string]
+     * @param {Name} name
+     * @param {typeof this.GRAMMAR[Name]} definition
      */
     addGrammarElement(name, definition) {
         this.GRAMMAR[name] = definition;
     }
 
     /**
+     * @template N
      * @param {string} keyword
-     * @param {ParseRule} definition
+     * @param {ParseRule<N>} definition
      */
     addCommand(keyword, definition) {
         var commandGrammarType = keyword + "Command";
@@ -1211,16 +1302,17 @@ class Parser {
     }
 
     /**
-     * @param {string} keyword
-     * @param {ParseRule} definition
+     * @template {string} Keyword
+     * @param {Keyword} keyword
+     * @param {typeof this.GRAMMAR[`${Keyword}Feature`] & (typeof this.FEATURES)[Keyword]} definition
      */
     addFeature(keyword, definition) {
         var featureGrammarType = keyword + "Feature";
 
-        /** @type {ParseRule} */
+        /** @satisfies {ParseRule} */
         var featureDefinitionWrapper = function (parser, runtime, tokens) {
             var featureElement = definition(parser, runtime, tokens);
-            if (featureElement) {
+            if (featureElement !== undefined) {
                 featureElement.isFeature = true;
                 featureElement.keyword = keyword;
                 featureElement.type = featureGrammarType;
@@ -1232,8 +1324,9 @@ class Parser {
     }
 
     /**
-     * @param {string} name
-     * @param {ParseRule} definition
+     * @template {string} [Name=string]
+     * @param {Name} name
+     * @param {typeof this.GRAMMAR[Name]} definition
      */
     addLeafExpression(name, definition) {
         this.LEAF_EXPRESSIONS.push(name);
@@ -1241,8 +1334,9 @@ class Parser {
     }
 
     /**
-     * @param {string} name
-     * @param {ParseRule} definition
+     * @template {string} [Name=string]
+     * @param {Name} name
+     * @param {typeof this.GRAMMAR[Name]} definition
      */
     addIndirectExpression(name, definition) {
         this.INDIRECT_EXPRESSIONS.push(name);
@@ -1250,7 +1344,6 @@ class Parser {
     }
 
     /**
-     *
      * @param {Tokens} tokens
      * @returns string
      */
@@ -1281,6 +1374,7 @@ class Parser {
     /**
      * @param {Tokens} tokens
      * @param {string} [message]
+     * @returns {never}
      */
     raiseParseError(tokens, message) {
         Parser.raiseParseError(tokens, message);
@@ -1288,7 +1382,7 @@ class Parser {
 
     /**
      * @param {Tokens} tokens
-     * @returns {ASTNode}
+     * @returns {ASTNode | undefined}
      */
     parseHyperScript(tokens) {
         var result = this.parseElement("hyperscript", tokens);
@@ -1405,20 +1499,19 @@ class Parser {
 
 class Runtime {
     /**
-     *
      * @param {Lexer} [lexer]
      * @param {Parser} [parser]
      */
     constructor(lexer, parser) {
-        this.lexer = lexer ?? new Lexer;
-        this.parser = parser ?? new Parser(this)
+        /** @type {Lexer} */ this.lexer = lexer ?? new Lexer;
+        /** @type {Parser} */ this.parser = parser ?? new Parser(this)
             .use(hyperscriptCoreGrammar)
             .use(hyperscriptWebGrammar);
         this.parser.runtime = this;
     }
 
     /**
-     * @param {HTMLElement} elt
+     * @param {Element} elt
      * @param {string} selector
      * @returns boolean
      */
@@ -1707,7 +1800,7 @@ class Runtime {
                             reject(e);
                         }
                     })
-                    .catch(function (reason) {
+                    .catch((reason) => {
                         reject(reason);
                     });
             });
@@ -1855,7 +1948,7 @@ class Runtime {
 
     /**
      *
-     * @param {ASTNode} elt
+     * @param {ASTNode & ParseElement & Required<Pick<ASTNode, "evaluate">>} elt
      * @param {Context} ctx
      * @returns {any}
      */
@@ -1887,20 +1980,21 @@ class Runtime {
         var body = 'document' in globalScope
             ? globalScope.document.body
             : new HyperscriptModule(args && args.module);
-        ctx = Object.assign(this.makeContext(body, null, body, null), ctx || {});
+        var fullCtx = Object.assign(this.makeContext(body, null, body, null), ctx || {});
         var element = this.parse(src);
         if (element.execute) {
-            element.execute(ctx);
-            if(typeof ctx.meta.returnValue !== 'undefined'){
-                return ctx.meta.returnValue;
+            element.execute(fullCtx);
+            if(typeof fullCtx.meta.returnValue !== 'undefined'){
+                return fullCtx.meta.returnValue;
             } else {
-                return ctx.result;
+                return fullCtx.result;
             }
         } else if (element.apply) {
             element.apply(body, body, args);
             return this.getHyperscriptFeatures(body);
         } else {
-            return element.evaluate(ctx);
+            // @ts-expect-error
+            return element.evaluate(fullCtx);
         }
 
         function makeModule() {
@@ -1909,11 +2003,11 @@ class Runtime {
     }
 
     /**
-    * @param {HTMLElement} elt
+    * @param {Element | Document} elt
     */
     processNode(elt) {
         var selector = this.getScriptSelector();
-        if (this.matchesSelector(elt, selector)) {
+        if (elt instanceof Element && this.matchesSelector(elt, selector)) {
             this.initElement(elt, elt);
         }
         if (elt instanceof HTMLScriptElement && elt.type === "text/hyperscript") {
@@ -1945,6 +2039,7 @@ class Runtime {
                     var tokens = lexer.tokenize(src);
                     var hyperScript = parser.parseHyperScript(tokens);
                     if (!hyperScript) return;
+                    // @ts-expect-error
                     hyperScript.apply(target || elt, elt);
                     setTimeout(() => {
                         this.triggerEvent(target || elt, "load", {
@@ -1959,8 +2054,7 @@ class Runtime {
                         "hyperscript errors were found on the following element:",
                         elt,
                         "\n\n",
-                        e.message,
-                        e.stack
+                        e
                     );
                 }
             }
@@ -2021,8 +2115,8 @@ class Runtime {
     }
 
     /**
-    * @param {any} context
-    * @returns {boolean}
+    * @param {ContextLike} context
+    * @returns {context is Context}
     */
     isHyperscriptContext(context) {
         return context instanceof Context;
@@ -2030,7 +2124,8 @@ class Runtime {
 
     /**
     * @param {string} str
-    * @param {Context} context
+    * @param {ContextLike} context
+    * @param {string} [type]
     * @returns {any}
     */
     resolveSymbol(str, context, type) {
@@ -2089,6 +2184,12 @@ class Runtime {
         }
     }
 
+    /**
+     * @param {string} str
+     * @param {ContextLike} context
+     * @param {string | undefined} type
+     * @param {any} value
+     */
     setSymbol(str, context, type, value) {
         if (type === "global") {
             globalScope[str] = value;
@@ -2132,6 +2233,7 @@ class Runtime {
             } else if (command.next) {
                 return command.next;
             } else {
+                // @ts-expect-error
                 return this.findNext(command.parent, context);
             }
         }
@@ -2401,7 +2503,13 @@ function clearAllCookies() {
 
 const CookieJar = new Proxy({}, {
     get(target, prop) {
-        if (prop === 'then' || prop === 'asyncWrapper') { // ignore special symbols
+        if (typeof prop === 'symbol') {
+            if (prop === Symbol.iterator) {
+                return getCookiesAsArray()[prop];
+            } else {
+                return undefined;
+            }
+        } else if (prop === 'then' || prop === 'asyncWrapper') { // ignore special symbols
             return null;
         } else if (prop === 'length') {
             return getCookiesAsArray().length
@@ -2409,7 +2517,7 @@ const CookieJar = new Proxy({}, {
             return clearCookie;
         } else if (prop === 'clearAll') {
             return clearAllCookies;
-        } else if (typeof prop === "string") {
+        } else {
             if (!isNaN(Number(prop))) {
                 return getCookiesAsArray()[parseInt(prop)];
 
@@ -2422,16 +2530,14 @@ const CookieJar = new Proxy({}, {
                     return decodeURIComponent(value);
                 }
             }
-        } else if (prop === Symbol.iterator) {
-            return getCookiesAsArray()[prop];
         }
     },
     set(target, prop, value) {
-        if ('symbol' === typeof prop) {
+        if (typeof prop === 'symbol') {
             return false;
         }
         var finalValue = null;
-        if ('string' === typeof value) {
+        if (typeof value === 'string') {
             finalValue = encodeURIComponent(value);
             finalValue += ";samesite=lax";
         } else {
@@ -2460,12 +2566,30 @@ const CookieJar = new Proxy({}, {
     }
 });
 
+/**
+ * @typedef {object} ContextLike
+ * @property {{[name: string]: unknown}} locals
+ * @property {unknown} me
+ * @property {unknown} result
+ * @property {unknown} you
+ * @property {object} [meta]
+ * @property {object} [meta.context]
+ * @property {unknown} [meta.context.detail]
+ * @property {Lexer} [meta.lexer]
+ * @property {Parser} [meta.parser]
+ * @property {Runtime} [meta.runtime]
+ */
+
+/**
+ * @extends ContextLike
+ */
 class Context {
     /**
     * @param {*} owner
     * @param {*} feature
     * @param {*} hyperscriptTarget
     * @param {*} event
+    * @param {Runtime} runtime
     */
     constructor(owner, feature, hyperscriptTarget, event, runtime) {
         this.meta = {
@@ -3113,6 +3237,7 @@ function hyperscriptCoreGrammar(parser) {
                     for (var i = 0; i < args.length; i++) {
                         ctx.locals[args[i].value] = arguments[i];
                     }
+                    // @ts-expect-error
                     return expr.evaluate(ctx); //OK
                 };
                 return returnFunc;
@@ -3297,7 +3422,9 @@ function hyperscriptCoreGrammar(parser) {
     parser.addIndirectExpression("asExpression", function (parser, runtime, tokens, root) {
         if (!tokens.matchToken("as")) return;
         tokens.matchToken("a") || tokens.matchToken("an");
+        // @ts-expect-error
         var conversion = parser.requireElement("dotOrColonPath", tokens).evaluate(); // OK No promise
+        /** @type {ASTNode<{type: "asExpression"}>} */
         var propertyAccess = {
             type: "asExpression",
             root: root,
@@ -3450,12 +3577,15 @@ function hyperscriptCoreGrammar(parser) {
         'em', 'ex', 'cap', 'ch', 'ic', 'rem', 'lh', 'rlh', 'vw', 'vh', 'vi', 'vb', 'vmin', 'vmax',
         'cm', 'mm', 'Q', 'pc', 'pt', 'px'
     ];
+    /**
+     * @typedef {ASTNode<{postfix: string}>} StringPostfixASTNode
+     */
     parser.addGrammarElement("postfixExpression", function (parser, runtime, tokens) {
         var root = parser.parseElement("primaryExpression", tokens);
 
         let stringPosfix = tokens.matchAnyToken.apply(tokens, STRING_POSTFIXES) || tokens.matchOpToken("%");
         if (stringPosfix) {
-            return {
+            return /** @type {StringPostfixASTNode} */ {
                 type: "stringPostfix",
                 postfix: stringPosfix.value,
                 args: [root],
@@ -3493,7 +3623,7 @@ function hyperscriptCoreGrammar(parser) {
             var typeName = tokens.requireTokenType("IDENTIFIER");
             if (!typeName.value) return;
             var nullOk = !tokens.matchOpToken("!");
-            return {
+            return /** @type {ASTNode<{type: "typeCheck", typeName: Token}>} */({
                 type: "typeCheck",
                 typeName: typeName,
                 nullOk: nullOk,
@@ -3509,7 +3639,7 @@ function hyperscriptCoreGrammar(parser) {
                 evaluate: function (context) {
                     return runtime.unifiedEval(this, context);
                 },
-            };
+            });
         } else {
             return root;
         }
@@ -3590,11 +3720,13 @@ function hyperscriptCoreGrammar(parser) {
     parser.addGrammarElement("beepExpression", function (parser, runtime, tokens) {
         if (!tokens.matchToken("beep!")) return;
         var expression = parser.parseElement("unaryExpression", tokens);
-        if (expression) {
+        if (expression !== undefined) {
             expression['booped'] = true;
+            /** @type {((this: ASTNode, context: Context) => any) | undefined} */
             var originalEvaluate = expression.evaluate;
-            expression.evaluate = function(ctx){
-                let value = originalEvaluate.apply(expression, arguments);
+            /** @this {ASTNode} */
+            expression.evaluate = function (ctx) {
+                let value = /** @type {(this: ASTNode, context: Context) => any} */(originalEvaluate).apply(/** @type {ASTNode} */(expression), /** @type {any} */(arguments));
                 let element = ctx.me;
                 runtime.beepValueToConsole(element, expression, value);
                 return value;
@@ -3673,10 +3805,11 @@ function hyperscriptCoreGrammar(parser) {
         }
 
         var inSearch = false;
+        var inElt;
         var withinElt;
         if (tokens.matchToken("in")) {
             inSearch = true;
-            var inElt = parser.requireElement("unaryExpression", tokens);
+            inElt = parser.requireElement("unaryExpression", tokens);
         } else if (tokens.matchToken("within")) {
             withinElt = parser.requireElement("unaryExpression", tokens);
         } else {
@@ -3706,8 +3839,8 @@ function hyperscriptCoreGrammar(parser) {
                     throw "Expected a CSS value to be returned by " + Tokens.sourceFor.apply(thingElt);
                 }
 
-                if(inSearch) {
-                    if (inElt) {
+                if (inSearch) {
+                    if (inElt !== undefined) {
                         if (forwardSearch) {
                             return scanForwardArray(from, inElt, css, wrapping);
                         } else {
@@ -3715,7 +3848,7 @@ function hyperscriptCoreGrammar(parser) {
                         }
                     }
                 } else {
-                    if (withinElt) {
+                    if (withinElt !== undefined) {
                         if (forwardSearch) {
                             return scanForwardQuery(from, withinElt, css, wrapping);
                         } else {
@@ -3767,6 +3900,7 @@ function hyperscriptCoreGrammar(parser) {
     });
 
     parser.addGrammarElement("mathOperator", function (parser, runtime, tokens) {
+        /** @type {ASTNode<{}> | undefined} */
         var expr = parser.parseElement("unaryExpression", tokens);
         var mathOp,
             initialMathOp = null;
@@ -3778,7 +3912,7 @@ function hyperscriptCoreGrammar(parser) {
                 parser.raiseParseError(tokens, "You must parenthesize math operations with different operators");
             }
             var rhs = parser.parseElement("unaryExpression", tokens);
-            expr = {
+            expr = /** @type {ASTNode<{}>} */({
                 type: "mathOperator",
                 lhs: expr,
                 rhs: rhs,
@@ -3800,7 +3934,7 @@ function hyperscriptCoreGrammar(parser) {
                 evaluate: function (context) {
                     return runtime.unifiedEval(this, context);
                 },
-            };
+            });
             mathOp = tokens.matchAnyOpToken("+", "-", "*", "/") || tokens.matchToken('mod');
         }
         return expr;
@@ -3830,13 +3964,14 @@ function hyperscriptCoreGrammar(parser) {
     }
 
     parser.addGrammarElement("comparisonOperator", function (parser, runtime, tokens) {
+        /** @type {ASTNode<{}> | undefined} */
         var expr = parser.parseElement("mathExpression", tokens);
         var comparisonToken = tokens.matchAnyOpToken("<", ">", "<=", ">=", "==", "===", "!=", "!==");
-        var operator = comparisonToken ? comparisonToken.value : null;
+        var operator = comparisonToken !== undefined ? comparisonToken.value : undefined;
         var hasRightValue = true; // By default, most comparisons require two values, but there are some exceptions.
         var typeCheck = false;
 
-        if (operator == null) {
+        if (operator === undefined) {
             if (tokens.matchToken("is") || tokens.matchToken("am")) {
                 if (tokens.matchToken("not")) {
                     if (tokens.matchToken("in")) {
@@ -3925,7 +4060,7 @@ function hyperscriptCoreGrammar(parser) {
             }
         }
 
-        if (operator) {
+        if (operator !== undefined) {
             // Do not allow chained comparisons, which is dumb
             var typeName, nullOk, rhs;
             if (typeCheck) {
@@ -3938,7 +4073,7 @@ function hyperscriptCoreGrammar(parser) {
                 }
             }
             var lhs = expr;
-            expr = {
+            expr = /** @type {ASTNode<{operator: string}>} */({
                 type: "comparisonOperator",
                 operator: operator,
                 typeName: typeName,
@@ -4012,7 +4147,7 @@ function hyperscriptCoreGrammar(parser) {
                 evaluate: function (context) {
                     return runtime.unifiedEval(this, context);
                 },
-            };
+            });
         }
         return expr;
     });
@@ -4022,6 +4157,7 @@ function hyperscriptCoreGrammar(parser) {
     });
 
     parser.addGrammarElement("logicalOperator", function (parser, runtime, tokens) {
+        /** @type {ASTNode<{}> | undefined} */
         var expr = parser.parseElement("comparisonExpression", tokens);
         var logicalOp,
             initialLogicalOp = null;
@@ -4033,7 +4169,7 @@ function hyperscriptCoreGrammar(parser) {
             }
             var rhs = parser.requireElement("comparisonExpression", tokens);
             const operator = logicalOp.value;
-            expr = {
+            expr = /** @type {ASTNode<{}>} */({
                 type: "logicalOperator",
                 operator: operator,
                 lhs: expr,
@@ -4049,7 +4185,7 @@ function hyperscriptCoreGrammar(parser) {
                 evaluate: function (context) {
                     return runtime.unifiedEval(this, context);
                 },
-            };
+            });
             logicalOp = tokens.matchToken("and") || tokens.matchToken("or");
         }
         return expr;
@@ -4068,6 +4204,7 @@ function hyperscriptCoreGrammar(parser) {
                 evaluate: function (context) {
                     return {
                         asyncWrapper: true,
+                        // @ts-expect-error
                         value: this.value.evaluate(context), //OK
                     };
                 },
@@ -4157,6 +4294,7 @@ function hyperscriptCoreGrammar(parser) {
         do {
             var on = parser.requireElement("eventName", tokens, "Expected event name");
 
+            // @ts-expect-error
             var eventName = on.evaluate(); // OK No Promise
 
             if (displayName) {
@@ -4191,13 +4329,16 @@ function hyperscriptCoreGrammar(parser) {
             if (eventName === "intersection") {
                 intersectionSpec = {};
                 if (tokens.matchToken("with")) {
+                    // @ts-expect-error
                     intersectionSpec["with"] = parser.requireElement("expression", tokens).evaluate();
                 }
                 if (tokens.matchToken("having")) {
                     do {
                         if (tokens.matchToken("margin")) {
+                            // @ts-expect-error
                             intersectionSpec["rootMargin"] = parser.requireElement("stringLike", tokens).evaluate();
                         } else if (tokens.matchToken("threshold")) {
+                            // @ts-expect-error
                             intersectionSpec["threshold"] = parser.requireElement("expression", tokens).evaluate();
                         } else {
                             parser.raiseParseError(tokens, "Unknown intersection config specification");
@@ -4247,7 +4388,7 @@ function hyperscriptCoreGrammar(parser) {
                 }
             }
 
-            var from = null;
+            var from = undefined;
             var elsewhere = false;
             if (tokens.matchToken("from")) {
                 if (tokens.matchToken("elsewhere")) {
@@ -4259,13 +4400,13 @@ function hyperscriptCoreGrammar(parser) {
                     } finally {
                         tokens.popFollow();
                     }
-                    if (!from) {
+                    if (from === undefined) {
                         parser.raiseParseError(tokens, 'Expected either target value or "elsewhere".');
                     }
                 }
             }
             // support both "elsewhere" and "from elsewhere"
-            if (from === null && elsewhere === false && tokens.matchToken("elsewhere")) {
+            if (from === undefined && elsewhere === false && tokens.matchToken("elsewhere")) {
                 elsewhere = true;
             }
 
@@ -4298,11 +4439,11 @@ function hyperscriptCoreGrammar(parser) {
                 endCount: endCount,
                 unbounded: unbounded,
                 debounceTime: debounceTime,
-                throttleTime: throttleTime,
+                /** @type {number | undefined} */ throttleTime: throttleTime,
                 mutationSpec: mutationSpec,
                 intersectionSpec: intersectionSpec,
-                debounced: undefined,
-                lastExec: undefined,
+                /** @type {number | undefined} */ debounced: undefined,
+                /** @type {number | undefined} */ lastExec: undefined,
             });
         } while (tokens.matchToken("or"));
 
@@ -4378,6 +4519,7 @@ function hyperscriptCoreGrammar(parser) {
                         error: err,
                     });
                 };
+                // @ts-expect-error
                 start.execute(ctx);
             },
             install: function (elt, source) {
@@ -4385,7 +4527,8 @@ function hyperscriptCoreGrammar(parser) {
                     var targets;
                     if (eventSpec.elsewhere) {
                         targets = [document];
-                    } else if (eventSpec.from) {
+                    } else if (eventSpec.from !== undefined) {
+                        // @ts-expect-error
                         targets = eventSpec.from.evaluate(runtime.makeContext(elt, onFeature, elt, null));
                     } else {
                         targets = [elt];
@@ -4463,6 +4606,7 @@ function hyperscriptCoreGrammar(parser) {
                                 var initialCtx = ctx.meta.context;
                                 ctx.meta.context = ctx.event;
                                 try {
+                                    // @ts-expect-error
                                     var value = eventSpec.filter.evaluate(ctx); //OK NO PROMISE
                                     if (value) {
                                         // match the javascript semantics for if statements
@@ -4509,8 +4653,8 @@ function hyperscriptCoreGrammar(parser) {
                             }
 
                             //debounce
-                            if (eventSpec.debounceTime) {
-                                if (eventSpec.debounced) {
+                            if (eventSpec.debounceTime !== undefined) {
+                                if (eventSpec.debounced !== undefined) {
                                     clearTimeout(eventSpec.debounced);
                                 }
                                 eventSpec.debounced = setTimeout(function () {
@@ -4545,6 +4689,7 @@ function hyperscriptCoreGrammar(parser) {
     parser.addFeature("def", function (parser, runtime, tokens) {
         if (!tokens.matchToken("def")) return;
         var functionName = parser.requireElement("dotOrColonPath", tokens);
+        // @ts-expect-error
         var nameVal = functionName.evaluate(); // OK
         var nameSpace = nameVal.split(".");
         var funcName = nameSpace.pop();
@@ -4569,8 +4714,9 @@ function hyperscriptCoreGrammar(parser) {
             errorHandler = parser.parseElement("commandList", tokens);
         }
 
+        /** @type {ReturnType<typeof parser.GRAMMAR["commandList"]> & ParseElement | undefined} */ var finallyHandler;
         if (tokens.matchToken("finally")) {
-            var finallyHandler = parser.requireElement("commandList", tokens);
+            finallyHandler = parser.requireElement("commandList", tokens);
             parser.ensureTerminated(finallyHandler);
         }
 
@@ -4617,6 +4763,7 @@ function hyperscriptCoreGrammar(parser) {
                         resolve = theResolve;
                         reject = theReject;
                     });
+                    // @ts-expect-error
                     start.execute(ctx);
                     if (ctx.meta.returned) {
                         return ctx.meta.returnValue;
@@ -4646,12 +4793,14 @@ function hyperscriptCoreGrammar(parser) {
     parser.addFeature("set", function (parser, runtime, tokens) {
         let setCmd = parser.parseElement("setCommand", tokens);
         if (setCmd) {
+            // @ts-expect-error
             if (setCmd.target.scope !== "element") {
                 parser.raiseParseError(tokens, "variables declared at the feature level must be element scoped.");
             }
             let setFeature = {
                 start: setCmd,
                 install: function (target, source) {
+                    // @ts-expect-error
                     setCmd && setCmd.execute(runtime.makeContext(target, setFeature, target, null));
                 },
             };
@@ -4670,6 +4819,7 @@ function hyperscriptCoreGrammar(parser) {
             start: start,
             install: function (target, source) {
                 let handler = function () {
+                    // @ts-expect-error
                     start && start.execute(runtime.makeContext(target, initFeature, target, null));
                 };
                 if (immediately) {
@@ -4701,6 +4851,7 @@ function hyperscriptCoreGrammar(parser) {
 
     parser.addFeature("behavior", function (parser, runtime, tokens) {
         if (!tokens.matchToken("behavior")) return;
+        // @ts-expect-error
         var path = parser.requireElement("dotOrColonPath", tokens).evaluate();
         var nameSpace = path.split(".");
         var name = nameSpace.pop();
@@ -4713,7 +4864,9 @@ function hyperscriptCoreGrammar(parser) {
             tokens.requireOpToken(")");
         }
         var hs = parser.requireElement("hyperscript", tokens);
+        // @ts-expect-error
         for (var i = 0; i < hs.features.length; i++) {
+            // @ts-expect-error
             var feature = hs.features[i];
             feature.behavior = path;
         }
@@ -4730,6 +4883,7 @@ function hyperscriptCoreGrammar(parser) {
                         for (var i = 0; i < formalParams.length; i++) {
                             elementScope[formalParams[i]] = innerArgs[formalParams[i]];
                         }
+                        // @ts-expect-error
                         hs.apply(target, source);
                     }
                 );
@@ -4739,6 +4893,7 @@ function hyperscriptCoreGrammar(parser) {
 
     parser.addFeature("install", function (parser, runtime, tokens) {
         if (!tokens.matchToken("install")) return;
+        // @ts-expect-error
         var behaviorPath = parser.requireElement("dotOrColonPath", tokens).evaluate();
         var behaviorNamespace = behaviorPath.split(".");
         var args = parser.parseElement("namedArgumentList", tokens);
@@ -4794,11 +4949,13 @@ function hyperscriptCoreGrammar(parser) {
                 expectFunctionDeclaration = true;
             }
         }
+        // @ts-expect-error
         var jsSourceEnd = jsLastToken.end + 1;
 
         return {
             type: "jsBody",
             exposedFunctionNames: funcNames,
+            // @ts-expect-error
             jsSource: tokens.source.substring(jsSourceStart, jsSourceEnd),
         };
     });
@@ -4808,8 +4965,10 @@ function hyperscriptCoreGrammar(parser) {
         var jsBody = parser.requireElement("jsBody", tokens);
 
         var jsSource =
+            // @ts-expect-error
             jsBody.jsSource +
             "\nreturn { " +
+            // @ts-expect-error
             jsBody.exposedFunctionNames
                 .map(function (name) {
                     return name + ":" + name;
@@ -4821,6 +4980,7 @@ function hyperscriptCoreGrammar(parser) {
         return {
             jsSource: jsSource,
             function: func,
+            // @ts-expect-error
             exposedFunctionNames: jsBody.exposedFunctionNames,
             install: function () {
                 Object.assign(globalScope, func());
@@ -4847,9 +5007,11 @@ function hyperscriptCoreGrammar(parser) {
         var jsBody = parser.requireElement("jsBody", tokens);
         tokens.matchToken("end");
 
+        // @ts-expect-error
         var func = varargConstructor(Function, inputs.concat([jsBody.jsSource]));
 
         var command = {
+            // @ts-expect-error
             jsSource: jsBody.jsSource,
             function: func,
             inputs: inputs,
@@ -4881,7 +5043,7 @@ function hyperscriptCoreGrammar(parser) {
             var body = parser.requireElement("commandList", tokens);
 
             // Append halt
-            var end = body;
+            /** @type {ASTNode} */ var end = body;
             while (end.next) end = end.next;
             end.next = runtime.HALT;
 
@@ -4893,6 +5055,7 @@ function hyperscriptCoreGrammar(parser) {
             body: body,
             op: function (context) {
                 setTimeout(function () {
+                    // @ts-expect-error
                     body.execute(context);
                 });
                 return runtime.findNext(this, context);
@@ -4960,18 +5123,21 @@ function hyperscriptCoreGrammar(parser) {
                 var lookahead = tokens.token(0);
                 if (lookahead.type === 'NUMBER' || lookahead.type === 'L_PAREN') {
                     events.push({
+                        // @ts-expect-error
                         time: parser.requireElement('expression', tokens).evaluate() // TODO: do we want to allow async here?
                     });
                 } else {
                     events.push({
+                        // @ts-expect-error
                         name: parser.requireElement("dotOrColonPath", tokens, "Expected event name").evaluate(),
                         args: parseEventArgs(tokens),
                     });
                 }
             } while (tokens.matchToken("or"));
 
+            var on;
             if (tokens.matchToken("from")) {
-                var on = parser.requireElement("expression", tokens);
+                on = parser.requireElement("expression", tokens);
             }
 
             // wait on event
@@ -5164,10 +5330,12 @@ function hyperscriptCoreGrammar(parser) {
                 }
                 var keepExecuting = true;
             }
+            var bubbling;
+            var haltDefault;
             if (tokens.matchToken("bubbling")) {
-                var bubbling = true;
+                bubbling = true;
             } else if (tokens.matchToken("default")) {
-                var haltDefault = true;
+                haltDefault = true;
             }
             var exit = parseReturnFunction(parser, runtime, tokens, false);
 
@@ -5204,8 +5372,9 @@ function hyperscriptCoreGrammar(parser) {
         while (tokens.matchOpToken(",")) {
             exprs.push(parser.requireElement("expression", tokens));
         }
+        var withExpr;
         if (tokens.matchToken("with")) {
-            var withExpr = parser.requireElement("expression", tokens);
+            withExpr = parser.requireElement("expression", tokens);
         }
         var logCmd = {
             exprs: exprs,
@@ -5297,8 +5466,9 @@ function hyperscriptCoreGrammar(parser) {
             } while (tokens.matchOpToken(","));
         }
 
+        var target;
         if (tokens.matchToken("called")) {
-            var target = parser.requireElement("symbol", tokens);
+            target = parser.requireElement("symbol", tokens);
         }
 
         var command;
@@ -5310,6 +5480,7 @@ function hyperscriptCoreGrammar(parser) {
                         id,
                         classes = [];
                     var re = /(?:(^|#|\.)([^#\. ]+))/g;
+                    // @ts-expect-error
                     while ((match = re.exec(expr.css))) {
                         if (match[1] === "") tagname = match[2].trim();
                         else if (match[1] === "#") id = match[2].trim();
@@ -5352,15 +5523,18 @@ function hyperscriptCoreGrammar(parser) {
 
         let lookAhead = tokens.token(1);
         if (!(lookAhead && lookAhead.op && (lookAhead.value === '.' || lookAhead.value === "("))) {
-            return null;
+            return undefined;
         }
 
         var expr = parser.requireElement("primaryExpression", tokens);
 
-        var rootRoot = expr.root;
-        var root = expr;
-        while (rootRoot.root != null) {
+        /** @type {ASTNode | undefined} */ var rootRoot = expr.root;
+        /** @type {ASTNode | undefined} */ var root = expr;
+        // @ts-expect-error
+        while (rootRoot.root !== undefined) {
+            // @ts-expect-error
             root = root.root;
+            // @ts-expect-error
             rootRoot = rootRoot.root;
         }
 
@@ -5368,25 +5542,29 @@ function hyperscriptCoreGrammar(parser) {
             parser.raiseParseError(tokens, "Pseudo-commands must be function calls");
         }
 
+        var realRoot;
+        // @ts-expect-error
         if (root.type === "functionCall" && root.root.root == null) {
             if (tokens.matchAnyToken("the", "to", "on", "with", "into", "from", "at")) {
-                var realRoot = parser.requireElement("expression", tokens);
+                realRoot = parser.requireElement("expression", tokens);
             } else if (tokens.matchToken("me")) {
-                var realRoot = parser.requireElement("implicitMeTarget", tokens);
+                realRoot = parser.requireElement("implicitMeTarget", tokens);
             }
         }
 
         /** @type {ASTNode} */
-
         var pseudoCommand;
-        if(realRoot){
-            pseudoCommand = {
+        if (realRoot) {
+            pseudoCommand = /** @type {ASTNode} */({
                 type: "pseudoCommand",
                 root: realRoot,
-                argExressions: root.argExressions,
-                args: [realRoot, root.argExressions],
+                // @ts-expect-error
+                argExpressions: root.argExpressions,
+                // @ts-expect-error
+                args: [realRoot, root.argExpressions],
                 op: function (context, rootRoot, args) {
                     runtime.nullCheck(rootRoot, realRoot);
+                    // @ts-expect-error
                     var func = rootRoot[root.root.name];
                     runtime.nullCheck(func, root);
                     if (func.hyperfunc) {
@@ -5398,9 +5576,9 @@ function hyperscriptCoreGrammar(parser) {
                 execute: function (context) {
                     return runtime.unifiedExec(this, context);
                 },
-            };
+            });
         } else {
-            pseudoCommand = {
+            pseudoCommand = /** @type {ASTNode} */({
                 type: "pseudoCommand",
                 expr: expr,
                 args: [expr],
@@ -5411,7 +5589,7 @@ function hyperscriptCoreGrammar(parser) {
                 execute: function (context) {
                     return runtime.unifiedExec(this, context);
                 },
-            };
+            });
         }
 
         return pseudoCommand;
@@ -5452,8 +5630,7 @@ function hyperscriptCoreGrammar(parser) {
             rootElt = target.root;
         }
 
-        /** @type {ASTNode} */
-        var setCmd = {
+        var setCmd = /** @type {ASTNode} */({
             target: target,
             symbolWrite: symbolWrite,
             value: value,
@@ -5485,7 +5662,7 @@ function hyperscriptCoreGrammar(parser) {
                 }
                 return runtime.findNext(this, context);
             },
-        };
+        });
         return setCmd;
     };
 
@@ -5565,8 +5742,7 @@ function hyperscriptCoreGrammar(parser) {
             tokens.requireToken("end");
         }
 
-        /** @type {ASTNode} */
-        var ifCmd = {
+        var ifCmd = /** @type {ASTNode} */({
             expr: expr,
             trueBranch: trueBranch,
             falseBranch: falseBranch,
@@ -5580,7 +5756,7 @@ function hyperscriptCoreGrammar(parser) {
                     return runtime.findNext(this, context);
                 }
             },
-        };
+        });
         parser.setParent(trueBranch, ifCmd);
         parser.setParent(falseBranch, ifCmd);
         return ifCmd;
@@ -5589,6 +5765,8 @@ function hyperscriptCoreGrammar(parser) {
     var parseRepeatExpression = function (parser, tokens, runtime, startedWithForToken) {
         var innerStartToken = tokens.currentToken();
         var identifier;
+        var isUntil = false;
+        var forever = false;
         if (tokens.matchToken("for") || startedWithForToken) {
             var identifierToken = tokens.requireTokenType("IDENTIFIER");
             identifier = identifierToken.value;
@@ -5600,7 +5778,7 @@ function hyperscriptCoreGrammar(parser) {
         } else if (tokens.matchToken("while")) {
             var whileExpr = parser.requireElement("expression", tokens);
         } else if (tokens.matchToken("until")) {
-            var isUntil = true;
+            isUntil = true;
             if (tokens.matchToken("event")) {
                 var evt = parser.requireElement("dotOrColonPath", tokens, "Expected event name");
                 if (tokens.matchToken("from")) {
@@ -5616,7 +5794,7 @@ function hyperscriptCoreGrammar(parser) {
                 tokens.requireToken("times");
             } else {
                 tokens.matchToken("forever"); // consume optional forever
-                var forever = true;
+                forever = true;
             }
         }
 
@@ -5649,11 +5827,12 @@ function hyperscriptCoreGrammar(parser) {
             tokens.requireToken("end");
         }
 
+        var slot;
         if (identifier == null) {
             identifier = "_implicit_repeat_" + innerStartToken.start;
-            var slot = identifier;
+            slot = identifier;
         } else {
-            var slot = identifier + "_" + innerStartToken.start;
+            slot = identifier + "_" + innerStartToken.start;
         }
 
         var repeatCmd = {
@@ -6034,6 +6213,10 @@ function hyperscriptCoreGrammar(parser) {
         return makeSetter(parser, runtime, tokens, target, implicitDecrementOp);
     });
 
+    /**
+     * @param {Tokens} tokens
+     * @param {Parser} parser
+     */
     function parseConversionInfo(tokens, parser) {
         var type = "text";
         var conversion;
@@ -6047,6 +6230,7 @@ function hyperscriptCoreGrammar(parser) {
         } else if (tokens.matchToken("text")) {
             // default, ignore
         } else {
+            // @ts-expect-error
             conversion = parser.requireElement("dotOrColonPath", tokens).evaluate();
         }
         return {type, conversion};
@@ -6056,8 +6240,9 @@ function hyperscriptCoreGrammar(parser) {
         if (!tokens.matchToken("fetch")) return;
         var url = parser.requireElement("stringLike", tokens);
 
+        var conversionInfo;
         if (tokens.matchToken("as")) {
-            var conversionInfo = parseConversionInfo(tokens, parser);
+            conversionInfo = parseConversionInfo(tokens, parser);
         }
 
         if (tokens.matchToken("with") && tokens.currentToken().value !== "{") {
@@ -6074,7 +6259,7 @@ function hyperscriptCoreGrammar(parser) {
         var conversion = conversionInfo ? conversionInfo.conversion : null;
 
         /** @type {ASTNode} */
-        var fetchCmd = {
+        var fetchCmd = /** @type {ASTNode} */({
             url: url,
             argExpressions: args,
             args: [url, args],
@@ -6145,11 +6330,14 @@ function hyperscriptCoreGrammar(parser) {
                         }
                     );
             },
-        };
+        });
         return fetchCmd;
     });
 }
 
+/**
+ * @param {Parser} parser
+ */
 function hyperscriptWebGrammar(parser) {
     parser.addCommand("settle", function (parser, runtime, tokens) {
         if (tokens.matchToken("settle")) {
@@ -6213,6 +6401,7 @@ function hyperscriptWebGrammar(parser) {
             var classRef = parser.parseElement("classRef", tokens);
             var attributeRef = null;
             var cssDeclaration = null;
+            var classRefs = null;
             if (classRef == null) {
                 attributeRef = parser.parseElement("attributeRef", tokens);
                 if (attributeRef == null) {
@@ -6222,7 +6411,7 @@ function hyperscriptWebGrammar(parser) {
                     }
                 }
             } else {
-                var classRefs = [classRef];
+                classRefs = [classRef];
                 while ((classRef = parser.parseElement("classRef", tokens))) {
                     classRefs.push(classRef);
                 }
@@ -6252,6 +6441,7 @@ function hyperscriptWebGrammar(parser) {
                             runtime.implicitLoop(to, function (target) {
                                 if (when) {
                                     context.result = target;
+                                    // @ts-expect-error
                                     let whenResult = runtime.evaluateNoPromise(when, context);
                                     if (whenResult) {
                                         if (target instanceof Element) target.classList.add(classRef.className);
@@ -6278,6 +6468,7 @@ function hyperscriptWebGrammar(parser) {
                         runtime.implicitLoop(to, function (target) {
                             if (when) {
                                 context.result = target;
+                                // @ts-expect-error
                                 let whenResult = runtime.evaluateNoPromise(when, context);
                                 if (whenResult) {
                                     target.setAttribute(attributeRef.name, attributeRef.value);
@@ -6336,7 +6527,7 @@ function hyperscriptWebGrammar(parser) {
                 stringParts.push("");
             } else {
                 var tok = tokens.consumeToken();
-                stringParts[stringParts.length-1] += tokens.source.substring(tok.start, tok.end);
+                stringParts[stringParts.length-1] += tokens.source.substring(tok.start || 0, tok.end);
             }
 
             stringParts[stringParts.length-1] += tokens.lastWhitespace();
@@ -6366,6 +6557,7 @@ function hyperscriptWebGrammar(parser) {
             var classRef = parser.parseElement("classRef", tokens);
             var attributeRef = null;
             var elementExpr = null;
+            var classRefs = null;
             if (classRef == null) {
                 attributeRef = parser.parseElement("attributeRef", tokens);
                 if (attributeRef == null) {
@@ -6378,17 +6570,18 @@ function hyperscriptWebGrammar(parser) {
                     }
                 }
             } else {
-                var classRefs = [classRef];
+                classRefs = [classRef];
                 while ((classRef = parser.parseElement("classRef", tokens))) {
                     classRefs.push(classRef);
                 }
             }
 
+            var fromExpr;
             if (tokens.matchToken("from")) {
-                var fromExpr = parser.requireElement("expression", tokens);
+                fromExpr = parser.requireElement("expression", tokens);
             } else {
                 if (elementExpr == null) {
-                    var fromExpr = parser.requireElement("implicitMeTarget", tokens);
+                    fromExpr = parser.requireElement("implicitMeTarget", tokens);
                 }
             }
 
@@ -6437,26 +6630,30 @@ function hyperscriptWebGrammar(parser) {
     parser.addCommand("toggle", function (parser, runtime, tokens) {
         if (tokens.matchToken("toggle")) {
             tokens.matchAnyToken("the", "my");
+            var visibility = false;
+            var onExpr;
+            var classRef2;
+            var classRefs = null;
             if (tokens.currentToken().type === "STYLE_REF") {
                 let styleRef = tokens.consumeToken();
                 var name = styleRef.value.substr(1);
-                var visibility = true;
+                visibility = true;
                 var hideShowStrategy = resolveHideShowStrategy(parser, tokens, name);
                 if (tokens.matchToken("of")) {
                     tokens.pushFollow("with");
                     try {
-                        var onExpr = parser.requireElement("expression", tokens);
+                        onExpr = parser.requireElement("expression", tokens);
                     } finally {
                         tokens.popFollow();
                     }
                 } else {
-                    var onExpr = parser.requireElement("implicitMeTarget", tokens);
+                    onExpr = parser.requireElement("implicitMeTarget", tokens);
                 }
             } else if (tokens.matchToken("between")) {
                 var between = true;
                 var classRef = parser.parseElement("classRef", tokens);
                 tokens.requireToken("and");
-                var classRef2 = parser.requireElement("classRef", tokens);
+                classRef2 = parser.requireElement("classRef", tokens);
             } else {
                 var classRef = parser.parseElement("classRef", tokens);
                 var attributeRef = null;
@@ -6466,7 +6663,7 @@ function hyperscriptWebGrammar(parser) {
                         parser.raiseParseError(tokens, "Expected either a class reference or attribute expression");
                     }
                 } else {
-                    var classRefs = [classRef];
+                    classRefs = [classRef];
                     while ((classRef = parser.parseElement("classRef", tokens))) {
                         classRefs.push(classRef);
                     }
@@ -6475,18 +6672,21 @@ function hyperscriptWebGrammar(parser) {
 
             if (visibility !== true) {
                 if (tokens.matchToken("on")) {
-                    var onExpr = parser.requireElement("expression", tokens);
+                    onExpr = parser.requireElement("expression", tokens);
                 } else {
-                    var onExpr = parser.requireElement("implicitMeTarget", tokens);
+                    onExpr = parser.requireElement("implicitMeTarget", tokens);
                 }
             }
 
+            var time;
+            var evt;
+            var from;
             if (tokens.matchToken("for")) {
-                var time = parser.requireElement("expression", tokens);
+                time = parser.requireElement("expression", tokens);
             } else if (tokens.matchToken("until")) {
-                var evt = parser.requireElement("dotOrColonPath", tokens, "Expected event name");
+                evt = parser.requireElement("dotOrColonPath", tokens, "Expected event name");
                 if (tokens.matchToken("from")) {
-                    var from = parser.requireElement("expression", tokens);
+                    from = parser.requireElement("expression", tokens);
                 }
             }
 
@@ -6695,8 +6895,9 @@ function hyperscriptWebGrammar(parser) {
                     .join("");
             }
 
+            var when;
             if (tokens.matchToken("when")) {
-                var when = parser.requireElement("expression", tokens);
+                when = parser.requireElement("expression", tokens);
             }
 
             var hideShowStrategy = resolveHideShowStrategy(parser, tokens, name);
@@ -6750,8 +6951,9 @@ function hyperscriptWebGrammar(parser) {
                 }
             }
 
+            var fromExpr;
             if (tokens.matchToken("from")) {
-                var fromExpr = parser.requireElement("expression", tokens);
+                fromExpr = parser.requireElement("expression", tokens);
             }
 
             if (tokens.matchToken("for")) {
@@ -6760,7 +6962,7 @@ function hyperscriptWebGrammar(parser) {
                 var forExpr = parser.requireElement("implicitMeTarget", tokens);
             }
 
-            var takeCmd = weAreTakingClasses ?
+            return weAreTakingClasses ?
                 {
                     classRefs: classRefs,
                     from: fromExpr,
@@ -6806,23 +7008,29 @@ function hyperscriptWebGrammar(parser) {
                         return runtime.findNext(this, context);
                     },
                 };
-            return takeCmd;
         }
     });
 
+    /**
+     * @param {Runtime} runtime
+     * @param {ContextLike} context
+     * @param {string | undefined} prop
+     * @param {any} valueToPut
+     */
     function putInto(runtime, context, prop, valueToPut) {
-        if (prop != null) {
-            var value = runtime.resolveSymbol(prop, context);
+        var value;
+        if (prop !== undefined) {
+            value = runtime.resolveSymbol(prop, context);
         } else {
-            var value = context;
+            value = context;
         }
-        if (value instanceof Element || value instanceof HTMLDocument) {
+        if (value instanceof Element || value instanceof Document) {
             while (value.firstChild) value.removeChild(value.firstChild);
             value.append(parser.runtime.convertValue(valueToPut, "Fragment"));
             runtime.processNode(value);
         } else {
-            if (prop != null) {
-                runtime.setSymbol(prop, context, null, valueToPut);
+            if (prop !== undefined) {
+                runtime.setSymbol(prop, context, undefined, valueToPut);
             } else {
                 throw "Don't know how to put a value into " + typeof context;
             }
@@ -6835,15 +7043,17 @@ function hyperscriptWebGrammar(parser) {
 
             var operationToken = tokens.matchAnyToken("into", "before", "after");
 
-            if (operationToken == null && tokens.matchToken("at")) {
+            if (operationToken === undefined && tokens.matchToken("at")) {
                 tokens.matchToken("the"); // optional "the"
                 operationToken = tokens.matchAnyToken("start", "end");
                 tokens.requireToken("of");
             }
 
-            if (operationToken == null) {
-                parser.raiseParseError(tokens, "Expected one of 'into', 'before', 'at start of', 'at end of', 'after'");
+            if (operationToken === undefined) {
+                return parser.raiseParseError(tokens, "Expected one of 'into', 'before', 'at start of', 'at end of', 'after'");
             }
+            /** @type {ASTNode<{attribute?: ASTNode<{name: string;}>; name: string; prop: ASTNode<{value: unknown;}>;} & ParseElement>} */
+            // @ts-expect-error
             var target = parser.requireElement("expression", tokens);
 
             var operation = operationToken.value;
@@ -6942,6 +7152,11 @@ function hyperscriptWebGrammar(parser) {
         }
     });
 
+    /**
+     * @param {Parser} parser
+     * @param {Runtime} runtime
+     * @param {Tokens} tokens
+     */
     function parsePseudopossessiveTarget(parser, runtime, tokens) {
         var targets;
         if (
@@ -6956,7 +7171,7 @@ function hyperscriptWebGrammar(parser) {
             try {
                 targets = parser.parseElement("expression", tokens);
             } finally {
-                delete parser.possessivesDisabled;
+                parser.possessivesDisabled = false;
             }
             // optional possessive
             if (tokens.matchOpToken("'")) {
@@ -6967,6 +7182,7 @@ function hyperscriptWebGrammar(parser) {
             targets = {
                 type: "pseudopossessiveIts",
                 token: identifier,
+                // @ts-expect-error
                 name: identifier.value,
                 evaluate: function (context) {
                     return runtime.resolveSymbol("it", context);
@@ -7023,10 +7239,12 @@ function hyperscriptWebGrammar(parser) {
                 }
                 currentToken = tokens.currentToken();
             }
+            var over;
+            var using;
             if (tokens.matchToken("over")) {
-                var over = parser.requireElement("expression", tokens);
+                over = parser.requireElement("expression", tokens);
             } else if (tokens.matchToken("using")) {
-                var using = parser.requireElement("expression", tokens);
+                using = parser.requireElement("expression", tokens);
             }
 
             var transition = {
@@ -7081,7 +7299,7 @@ function hyperscriptWebGrammar(parser) {
                                         //console.log("transition ended", transition);
                                         target.style.transition = initialTransition;
                                         resolved = true;
-                                        resolve();
+                                        resolve(undefined);
                                     }
                                 },
                                 { once: true }
@@ -7101,7 +7319,7 @@ function hyperscriptWebGrammar(parser) {
                                     //console.log("transition ended", transition);
                                     target.style.transition = initialTransition;
                                     resolved = true;
-                                    resolve();
+                                    resolve(undefined);
                                 }
                             }, 100);
 
@@ -7139,6 +7357,7 @@ function hyperscriptWebGrammar(parser) {
         var propsToMeasure = [];
         if (!parser.commandBoundary(tokens.currentToken()))
             do {
+                // @ts-expect-error
                 propsToMeasure.push(tokens.matchTokenType("IDENTIFIER").value);
             } while (tokens.matchOpToken(","));
 
@@ -7190,18 +7409,22 @@ function hyperscriptWebGrammar(parser) {
 
     parser.addLeafExpression("closestExpr", function (parser, runtime, tokens) {
         if (tokens.matchToken("closest")) {
+            var parentSearch;
             if (tokens.matchToken("parent")) {
-                var parentSearch = true;
+                parentSearch = true;
             }
 
-            var css = null;
+            var attributeRef;
+            var css;
             if (tokens.currentToken().type === "ATTRIBUTE_REF") {
-                var attributeRef = parser.requireElement("attributeRefAccess", tokens, null);
+                attributeRef = parser.requireElement("attributeRefAccess", tokens, undefined);
+                // @ts-expect-error
                 css = "[" + attributeRef.attribute.name + "]";
             }
 
+            var expr;
             if (css == null) {
-                var expr = parser.requireElement("expression", tokens);
+                expr = parser.requireElement("expression", tokens);
                 if (expr.css == null) {
                     parser.raiseParseError(tokens, "Expected a CSS expression");
                 } else {
@@ -7209,10 +7432,11 @@ function hyperscriptWebGrammar(parser) {
                 }
             }
 
+            var to;
             if (tokens.matchToken("to")) {
-                var to = parser.parseElement("expression", tokens);
+                to = parser.parseElement("expression", tokens);
             } else {
-                var to = parser.parseElement("implicitMeTarget", tokens);
+                to = parser.parseElement("implicitMeTarget", tokens);
             }
 
             var closestExpr = {
@@ -7258,12 +7482,14 @@ function hyperscriptWebGrammar(parser) {
 
     parser.addCommand("go", function (parser, runtime, tokens) {
         if (tokens.matchToken("go")) {
+            var target;
+            var offset;
             if (tokens.matchToken("back")) {
                 var back = true;
             } else {
                 tokens.matchToken("to");
                 if (tokens.matchToken("url")) {
-                    var target = parser.requireElement("stringLike", tokens);
+                    target = parser.requireElement("stringLike", tokens);
                     var url = true;
                     if (tokens.matchToken("in")) {
                         tokens.requireToken("new");
@@ -7277,13 +7503,13 @@ function hyperscriptWebGrammar(parser) {
                     if (verticalPosition || horizontalPosition) {
                         tokens.requireToken("of");
                     }
-                    var target = parser.requireElement("unaryExpression", tokens);
+                    target = parser.requireElement("unaryExpression", tokens);
 
                     var plusOrMinus = tokens.matchAnyOpToken("+", "-");
                     if (plusOrMinus) {
                         tokens.pushFollow("px");
                         try {
-                            var offset = parser.requireElement("expression", tokens);
+                            offset = parser.requireElement("expression", tokens);
                         } finally {
                             tokens.popFollow();
                         }
@@ -7391,7 +7617,7 @@ function hyperscriptWebGrammar(parser) {
             return;
         }
         var conversion = str.split(":")[1];
-        /** @type Object<string,string | string[]> */
+        /** @type Object<string, string | string[]> */
         var result = {};
 
         var implicitLoop = parser.runtime.implicitLoop.bind(parser.runtime);
@@ -7400,7 +7626,7 @@ function hyperscriptWebGrammar(parser) {
             // Try to get a value directly from this node
             var input = getInputInfo(node);
 
-            if (input !== undefined) {
+            if (input !== undefined && input.value !== undefined) {
                 result[input.name] = input.value;
                 return;
             }
@@ -7433,44 +7659,39 @@ function hyperscriptWebGrammar(parser) {
         function appendValue(node) {
             var info = getInputInfo(node);
 
-            if (info == undefined) {
+            if (info === undefined || info.value === undefined) {
                 return;
             }
 
             // If there is no value already stored in this space.
-            if (result[info.name] == undefined) {
+            if (result[info.name] === undefined) {
                 result[info.name] = info.value;
-                return;
-            }
-
-            if (Array.isArray(result[info.name]) && Array.isArray(info.value)) {
-                result[info.name] = [].concat(result[info.name], info.value);
                 return;
             }
         }
 
         /**
          * @param {HTMLInputElement} node
-         * @returns {{name:string, value:string | string[]} | undefined}
+         * @returns {{ name: string; value?: string | string[]; } | undefined}
          */
         function getInputInfo(node) {
             try {
-                /** @type {{name: string, value: string | string[]}}*/
+                /** @type {{ name?: string; value?: string | string[]; }}*/
                 var result = {
                     name: node.name,
                     value: node.value,
                 };
 
-                if (result.name == undefined || result.value == undefined) {
+                if (result.name === undefined || result.value === undefined) {
                     return undefined;
                 }
 
-                if (node.type == "radio" && node.checked == false) {
+                if (node.type === "radio" && node.checked === false) {
                     return undefined;
                 }
 
                 if (node.type == "checkbox") {
-                    if (node.checked == false) {
+                    if (node.checked === false) {
                         result.value = undefined;
                     } else if (typeof result.value === "string") {
                         result.value = [result.value];
@@ -7486,15 +7707,23 @@ function hyperscriptWebGrammar(parser) {
                         result.value.push(selected[index].value);
                     }
                 }
-                return result;
+                return /** @type {{ name: string; value?: string | string[]; }} */(result);
             } catch (e) {
                 return undefined;
             }
         }
     });
 
+    /**
+     * @param {object} value
+     * @returns {string}
+     */
     config.conversions["HTML"] = function (value) {
-        var toHTML = /** @returns {string}*/ function (/** @type any*/ value) {
+        /**
+         * @param {object} value
+         * @returns {string}
+         */
+        var toHTML = function (value) {
             if (value instanceof Array) {
                 return value
                     .map(function (item) {
@@ -7503,7 +7732,7 @@ function hyperscriptWebGrammar(parser) {
                     .join("");
             }
 
-            if (value instanceof HTMLElement) {
+            if (value instanceof Element) {
                 return value.outerHTML;
             }
 
@@ -7511,7 +7740,7 @@ function hyperscriptWebGrammar(parser) {
                 var result = "";
                 for (var i = 0; i < value.length; i++) {
                     var node = value[i];
-                    if (node instanceof HTMLElement) {
+                    if (node instanceof Element) {
                         result += node.outerHTML;
                     }
                 }
@@ -7547,15 +7776,6 @@ function hyperscriptWebGrammar(parser) {
 
 const runtime_ = new Runtime(), lexer_ = runtime_.lexer, parser_ = runtime_.parser;
 
-/**
- *
- * @param {string} src
- * @param {Partial<Context>} [ctx]
- */
-function run(src, ctx) {
-    return runtime_.evaluate(src, ctx);
-}
-
 function browserInit() {
     /** @type {HTMLScriptElement[]} */
     var scripts = Array.from(globalScope.document.querySelectorAll("script[type='text/hyperscript'][src]"));
@@ -7585,9 +7805,9 @@ function browserInit() {
     }
 
     function getMetaConfig() {
-        /** @type {HTMLMetaElement} */
+        /** @type {HTMLMetaElement | null} */
         var element = document.querySelector('meta[name="htmx-config"]');
-        if (element) {
+        if (element !== null) {
             return parseJSON(element.content);
         } else {
             return null;
@@ -7610,6 +7830,8 @@ function browserInit() {
  * @property {string} config.defaultTransition
  * @property {string} config.disableSelector
  * @property {typeof conversions} config.conversions
+ * 
+ * @property {(plugin: (_hyperscript: HyperscriptAPI) => void) => void} use
  *
  * @property {Object} internals
  * @property {Lexer} internals.lexer
@@ -7618,6 +7840,7 @@ function browserInit() {
  * @property {typeof Parser} internals.Parser
  * @property {Runtime} internals.runtime
  * @property {typeof Runtime} internals.Runtime
+ * @property {typeof Tokens} internals.Tokens
  *
  * @property {typeof ElementCollection} ElementCollection
  *
@@ -7630,6 +7853,7 @@ function browserInit() {
  * @property {(src: string) => ASTNode} parse
  * @property {(node: Element) => void} processNode
  *
+ * @property {string} version
  * @property {() => void} browserInit
  *
  *
@@ -7637,32 +7861,30 @@ function browserInit() {
  */
 
 /**
- * @type {Hyperscript}
+ * @satisfies {HyperscriptAPI}
  */
-const _hyperscript = Object.assign(
-    run,
-    {
-        config,
+const _hyperscript_api = {
+    config,
 
-        use(plugin) { plugin(_hyperscript); },
+    use(plugin) { plugin(_hyperscript); },
 
-        internals: {
-            lexer: lexer_, parser: parser_, runtime: runtime_,
-            Lexer, Tokens, Parser, Runtime,
-        },
-        ElementCollection,
+    internals: {
+        Lexer, lexer: lexer_, Parser, parser: parser_, Runtime, runtime: runtime_,
+        Tokens,
+    },
+    ElementCollection,
 
-        addFeature:            parser_.addFeature.bind(parser_),
-        addCommand:            parser_.addCommand.bind(parser_),
-        addLeafExpression:     parser_.addLeafExpression.bind(parser_),
-        addIndirectExpression: parser_.addIndirectExpression.bind(parser_),
+    addFeature:            parser_.addFeature.bind(parser_),
+    addCommand:            parser_.addCommand.bind(parser_),
+    addLeafExpression:     parser_.addLeafExpression.bind(parser_),
+    addIndirectExpression: parser_.addIndirectExpression.bind(parser_),
 
-        evaluate:    runtime_.evaluate.bind(runtime_),
-        parse:       runtime_.parse.bind(runtime_),
-        processNode: runtime_.processNode.bind(runtime_),
-        version: "0.9.12",
-        browserInit,
-    }
-);
+    evaluate:    runtime_.evaluate.bind(runtime_),
+    parse:       runtime_.parse.bind(runtime_),
+    processNode: runtime_.processNode.bind(runtime_),
+    version: "0.9.12",
+    browserInit,
+};
+const _hyperscript = Object.assign(_hyperscript_api.evaluate, _hyperscript_api);
 
 export { _hyperscript as default };
