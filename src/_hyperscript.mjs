@@ -2401,7 +2401,13 @@ function clearAllCookies() {
 
 const CookieJar = new Proxy({}, {
     get(target, prop) {
-        if (prop === 'then' || prop === 'asyncWrapper') { // ignore special symbols
+        if (typeof prop === 'symbol') {
+            if (prop === Symbol.iterator) {
+                return getCookiesAsArray()[prop];
+            } else {
+                return undefined;
+            }
+        } else if (prop === 'then' || prop === 'asyncWrapper') { // ignore special symbols
             return null;
         } else if (prop === 'length') {
             return getCookiesAsArray().length
@@ -2409,7 +2415,7 @@ const CookieJar = new Proxy({}, {
             return clearCookie;
         } else if (prop === 'clearAll') {
             return clearAllCookies;
-        } else if (typeof prop === "string") {
+        } else {
             if (!isNaN(Number(prop))) {
                 return getCookiesAsArray()[parseInt(prop)];
 
@@ -2422,8 +2428,6 @@ const CookieJar = new Proxy({}, {
                     return decodeURIComponent(value);
                 }
             }
-        } else if (prop === Symbol.iterator) {
-            return getCookiesAsArray()[prop];
         }
     },
     set(target, prop, value) {
@@ -6760,7 +6764,7 @@ function hyperscriptWebGrammar(parser) {
                 var forExpr = parser.requireElement("implicitMeTarget", tokens);
             }
 
-            var takeCmd = weAreTakingClasses ?
+            return weAreTakingClasses ?
                 {
                     classRefs: classRefs,
                     from: fromExpr,
@@ -6806,7 +6810,6 @@ function hyperscriptWebGrammar(parser) {
                         return runtime.findNext(this, context);
                     },
                 };
-            return takeCmd;
         }
     });
 
