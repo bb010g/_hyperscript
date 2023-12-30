@@ -7885,6 +7885,10 @@ const _hyperscript_api = {
     version: "0.9.12",
     browserInit,
 };
+
+/**
+ * @type {Hyperscript}
+ */
 const _hyperscript = Object.assign(_hyperscript_api.evaluate, _hyperscript_api);
 
 export default _hyperscript;
