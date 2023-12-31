@@ -7,6 +7,7 @@ import type {
 import gzip from "rollup-plugin-gzip";
 import nodeResolve from "@rollup/plugin-node-resolve";
 import replace from "@rollup/plugin-replace";
+import sucrase from "@rollup/plugin-sucrase";
 import terser from "@rollup/plugin-terser";
 
 const coreEsOptions = {
@@ -45,9 +46,13 @@ const coreIifeOutroReplacementGuard = (replacement: string) => (id: string) => {
     return replacement;
 };
 const coreOptions = {
-    input: "src/_hyperscript.mjs",
+    input: "src/_hyperscript.mts",
     output: [coreEsOptions, coreUmdOptions, coreMinifiedUmdOptions],
     plugins: [
+        sucrase({
+            disableESTransforms: true,
+            transforms: ['typescript'],
+        }),
         // disable AMD in UMD finalizer
         replace({
             delimiters: ["(?:\n    )?", ""],
