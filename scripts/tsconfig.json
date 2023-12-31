@@ -1,0 +1,39 @@
+{
+    "compilerOptions": {
+        "composite": true,
+        "outDir": "../dist-scripts",
+        "rootDir": "..",
+
+        "allowImportingTsExtensions": false,
+        "allowJs": true,
+        "checkJs": true,
+        "moduleResolution": "Node16",
+        "resolveJsonModule": true,
+        "verbatimModuleSyntax": true,
+
+        "module": "NodeNext",
+        "noEmit": true,
+        "noEmitOnError": true,
+        "target": "ES2022",
+
+        "lib": ["ES2022"],
+        "types": ["node"],
+
+        "strict": true
+    },
+
+    "ts-node": {
+        "esm": true,
+        "experimentalResolver": true
+    },
+
+    "files": [
+        "../package.json"
+    ],
+    "include": [
+        "**/*.mjs",
+        "**/*.mts"
+    ],
+
+    "references": []
+}

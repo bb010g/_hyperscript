@@ -1,19 +1,5 @@
-/**
- * @typedef {Object} Hyperscript
- */
-
-(function (self, factory) {
-    const _hyperscript = factory(self)
-
-    if (typeof exports === 'object' && typeof exports['nodeName'] !== 'string') {
-        module.exports = _hyperscript
-    } else {
-        self['_hyperscript'] = _hyperscript
-        if ('document' in self) self['_hyperscript'].browserInit()
-    }
-})(typeof self !== 'undefined' ? self : this, (globalScope) => {
-
-'use strict';
+/** @type {typeof globalThis} */
+const globalScope = typeof globalThis !== 'undefined' ? globalThis : self;
 
 /**
  * @type {Object}
@@ -7669,5 +7655,4 @@ const _hyperscript = Object.assign(
     }
 );
 
-return _hyperscript;
-})
+export default _hyperscript;

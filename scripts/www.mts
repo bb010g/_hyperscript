@@ -1,5 +1,7 @@
-var config = require('../package.json');
-var fs = require('fs-extra');
+#!/usr/bin/env ts-node
+
+import config from '../package.json' with { type: 'json' };
+import fs from 'fs-extra';
 
 var testRoot = "www/test/";
 var currentReleaseRoot = testRoot + config.version;

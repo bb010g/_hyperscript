@@ -23,16 +23,15 @@
     "_hyperscript": "src/bin/node-hyperscript.js"
   },
   "scripts": {
-    "dist:build": "npm-run-all terser typings",
-    "dist:compress": "precompress -t gz dist/_hyperscript.min.js",
+    "dist:build": "npm-run-all typings build terser",
     "dist:copy": "shx cp -r \"src/*\" dist/",
-    "dist": "npm-run-all \"dist:copy\" \"dist:build\" \"dist:compress\"",
+    "dist": "npm-run-all \"dist:copy\" \"dist:build\"",
+    "build": "rollup --config rollup.config.mts --configPlugin \"sucrase={transforms:['typescript']}\"",
     "terser:hdb": "terser -m eval -o dist/hdb.min.js dist/hdb.js",
-    "terser:hyperscript": "terser -m eval -o dist/_hyperscript.min.js dist/_hyperscript.js",
     "terser": "npm-run-all \"terser:*\"",
     "test": "mocha-chrome test/index.html",
     "typings": "tsc --declaration dist/_hyperscript.js --allowJs --emitDeclarationOnly --skipLibCheck",
-    "www": "node scripts/www.js"
+    "www": "tsx scripts/www.mts"
   },
   "repository": {
     "type": "git",
@@ -44,7 +43,14 @@
   },
   "devDependencies": {
     "@11ty/eleventy": "^1.0.2",
+    "@rollup/plugin-replace": "^5.0.5",
+    "@rollup/plugin-sucrase": "^5.0.2",
+    "@rollup/plugin-terser": "^0.4.4",
+    "@types/fs-extra": "^9.0.0",
+    "@types/node": ">=18.19.0",
     "chai": "^4.2.0",
+    "es-main": "^1.3.0",
+    "esbuild": "^0.19.10",
     "fs-extra": "^9.0.0",
     "markdown-it": "^12.3.2",
     "markdown-it-anchor": "^8.4.1",
@@ -53,10 +59,12 @@
     "mocha": "^10.0.0",
     "mocha-chrome": "github:Telroshan/mocha-chrome",
     "npm-run-all": "^4.1.5",
-    "precompress": "^12.0.2",
+    "rollup": "^4.9.2",
+    "rollup-plugin-gzip": "^3.1.1",
     "shx": "^0.3.4",
     "sinon": "^9.0.2",
     "terser": "^5.14.1",
+    "tsx": "^4.7.0",
     "typescript": "^5.3.3"
   },
   "dependencies": {

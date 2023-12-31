@@ -1,7 +1,9 @@
-.idea
-/node_modules
 _site
-/HyperTalk Reference 2.4.pdf
 .DS_Store
-*~
+.idea
 *.icloud
+*.tsbuildinfo
+*~
+/dist-scripts
+/HyperTalk Reference 2.4.pdf
+/node_modules
