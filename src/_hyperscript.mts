@@ -1,16 +1,8 @@
 /** @type {typeof globalThis} */
-const globalScope = typeof globalThis !== 'undefined' ? globalThis : self;
+const globalScope: typeof globalThis = typeof globalThis !== 'undefined' ? globalThis : self;
 
-/**
- * @typedef {Object} conversions
- *
- * @callback DynamicConverter
- * @param {String} str
- * @param {*} value
- * @returns {*}
- */
+type DynamicConverter = (str: string, value: any) => any;
 const conversions = {
-    /** @type {DynamicConverter[]} */
     dynamicResolvers: [
         function(str, value){
             if (str === "Fixed") {
@@ -20,59 +12,33 @@ const conversions = {
                 return Number(value).toFixed(parseInt(num));
             }
         }
-    ],
-    /**
-     * @param {*} val 
-     */
-    String: function (val) {
+    ] as DynamicConverter[],
+    String: function (val: any) {
         if (val.toString) {
             return val.toString();
         } else {
             return "" + val;
         }
     },
-    /**
-     * @param {string} val
-     */
-    Int: function (val) {
+    Int: function (val: string) {
         return parseInt(val);
     },
-    /**
-     * @param {string} val
-     */
-    Float: function (val) {
+    Float: function (val: string) {
         return parseFloat(val);
     },
-    /**
-     * @param {*} val
-     */
-    Number: function (val) {
+    Number: function (val: any) {
         return Number(val);
     },
-    /**
-     * @param {string | number | Date} val
-     */
-    Date: function (val) {
+    Date: function (val: string | number | Date) {
         return new Date(val);
     },
-    /**
-     * @template T
-     * @param {Iterable<T> | ArrayLike<T>} val
-     * @returns {T[]}
-     */
-    Array: function (val) {
+    Array: function <T>(val: Iterable<T> | ArrayLike<T>): T[] {
         return Array.from(val);
     },
-    /**
-     * @param {*} val
-     */
-    JSON: function (val) {
+    JSON: function (val: any) {
         return JSON.stringify(val);
     },
-    /**
-     * @param {*} val
-     */
-    Object: function (val) {
+    Object: function (val: any) {
         if (val instanceof String) {
             val = val.toString();
         }
@@ -130,81 +96,58 @@ class Lexer {
 
     /**
      * isValidCSSClassChar returns `true` if the provided character is valid in a CSS class.
-     * @param {string} c
-     * @returns boolean
      */
-    static isValidCSSClassChar(c) {
+    static isValidCSSClassChar(c: string): boolean {
         return Lexer.isAlpha(c) || Lexer.isNumeric(c) || c === "-" || c === "_" || c === ":";
     }
 
     /**
      * isValidCSSIDChar returns `true` if the provided character is valid in a CSS ID
-     * @param {string} c
-     * @returns boolean
      */
-    static isValidCSSIDChar(c) {
+    static isValidCSSIDChar(c: string): boolean {
         return Lexer.isAlpha(c) || Lexer.isNumeric(c) || c === "-" || c === "_" || c === ":";
     }
 
     /**
      * isWhitespace returns `true` if the provided character is whitespace.
-     * @param {string} c
-     * @returns boolean
      */
-    static isWhitespace(c) {
+    static isWhitespace(c: string): boolean {
         return c === " " || c === "\t" || Lexer.isNewline(c);
     }
 
     /**
      * positionString returns a string representation of a Token's line and column details.
-     * @param {Token} token
-     * @returns string
      */
-    static positionString(token) {
+    static positionString(token: Token): string {
         return "[Line: " + token.line + ", Column: " + token.column + "]";
     }
 
     /**
      * isNewline returns `true` if the provided character is a carriage return or newline
-     * @param {string} c
-     * @returns boolean
      */
-    static isNewline(c) {
+    static isNewline(c: string): boolean {
         return c === "\r" || c === "\n";
     }
 
     /**
      * isNumeric returns `true` if the provided character is a number (0-9)
-     * @param {string} c
-     * @returns boolean
      */
-    static isNumeric(c) {
+    static isNumeric(c: string): boolean {
         return c >= "0" && c <= "9";
     }
 
     /**
      * isAlpha returns `true` if the provided character is a letter in the alphabet
-     * @param {string} c
-     * @returns boolean
      */
-    static isAlpha(c) {
+    static isAlpha(c: string): boolean {
         return (c >= "a" && c <= "z") || (c >= "A" && c <= "Z");
     }
 
-    /**
-     * @param {string} c
-     * @param {boolean} [dollarIsOp]
-     * @returns boolean
-     */
-    static isIdentifierChar(c, dollarIsOp) {
+    static isIdentifierChar(c: string, dollarIsOp?: boolean): boolean {
         return c === "_" || c === "$";
     }
 
-    /**
-     * @param {string} c
-     * @returns boolean
-     */
-    static isReservedChar(c) {
+    static isReservedChar(c: string): boolean {
         return c === "`" || c === "^";
     }
 
@@ -212,7 +155,7 @@ class Lexer {
      * @param {Token[]} tokens
      * @returns {boolean}
      */
-    static isValidSingleQuoteStringStart(tokens) {
+    static isValidSingleQuoteStringStart(tokens: Token[]): boolean {
         if (tokens.length > 0) {
             var previousToken = tokens[tokens.length - 1];
             if (
@@ -234,8 +177,8 @@ class Lexer {
      * @param {boolean} [template]
      * @returns {Tokens}
      */
-    static tokenize(string, template) {
-        var tokens = /** @type {Token[]}*/ [];
+    static tokenize(string: string, template?: boolean): Tokens {
+        var tokens: Token[] = [];
         var source = string;
         var position = 0;
         var column = 0;
@@ -306,23 +249,13 @@ class Lexer {
 
         return new Tokens(tokens, [], source);
 
-        /**
-         * @param {string} [type]
-         * @param {string} [value]
-         * @returns {Token}
-         */
-        function makeOpToken(type, value) {
+        function makeOpToken(type?: string, value?: string): Token {
             var token = makeToken(type, value);
             token.op = true;
             return token;
         }
 
-        /**
-         * @param {string} [type]
-         * @param {string} [value]
-         * @returns {Token}
-         */
-        function makeToken(type, value) {
+        function makeToken(type?: string, value?: string): Token {
             return {
                 type: type,
                 value: value || "",
@@ -348,10 +281,7 @@ class Lexer {
             consumeChar();
         }
 
-        /**
-         * @returns Token
-         */
-        function consumeClassReference() {
+        function consumeClassReference(): Token {
             var classRef = makeToken("CLASS_REF");
             var value = consumeChar();
             if (currentChar() === "{") {
@@ -375,10 +305,7 @@ class Lexer {
             return classRef;
         }
 
-        /**
-         * @returns Token
-         */
-        function consumeAttributeReference() {
+        function consumeAttributeReference(): Token {
             var attributeRef = makeToken("ATTRIBUTE_REF");
             var value = consumeChar();
             while (position < source.length && currentChar() !== "]") {
@@ -426,10 +353,7 @@ class Lexer {
             return styleRef;
         }
 
-        /**
-         * @returns Token
-         */
-        function consumeIdReference() {
+        function consumeIdReference(): Token {
             var idRef = makeToken("ID_REF");
             var value = consumeChar();
             if (currentChar() === "{") {
@@ -453,10 +377,7 @@ class Lexer {
             return idRef;
         }
 
-        /**
-         * @returns Token
-         */
-        function consumeIdentifier() {
+        function consumeIdentifier(): Token {
             var identifier = makeToken("IDENTIFIER");
             var value = consumeChar();
             while (Lexer.isAlpha(currentChar()) ||
@@ -472,10 +393,7 @@ class Lexer {
             return identifier;
         }
 
-        /**
-         * @returns Token
-         */
-        function consumeNumber() {
+        function consumeNumber(): Token {
             var number = makeToken("NUMBER");
             var value = consumeChar();
 
@@ -515,10 +433,7 @@ class Lexer {
             return number;
         }
 
-        /**
-         * @returns Token
-         */
-        function consumeOp() {
+        function consumeOp(): Token {
             var op = makeOpToken();
             var value = consumeChar(); // consume leading char
             while (currentChar() && ((value + currentChar()) in Lexer.OP_TABLE)) {
@@ -530,10 +445,7 @@ class Lexer {
             return op;
         }
 
-        /**
-         * @returns Token
-         */
-        function consumeString() {
+        function consumeString(): Token {
             var string = makeToken("STRING");
             var startChar = consumeChar(); // consume leading quote
             var value = "";
@@ -577,10 +489,7 @@ class Lexer {
             return string;
         }
 
-        /**
-         * @returns number
-         */
-        function consumeHexEscape() {
+        function consumeHexEscape(): number {
             const BASE = 16;
             if (!currentChar()) {
                 return NaN;
@@ -594,17 +503,11 @@ class Lexer {
             return result;
         }
 
-        /**
-         * @returns string
-         */
-        function currentChar() {
+        function currentChar(): string {
             return source.charAt(position);
         }
 
-        /**
-         * @returns string
-         */
-        function nextChar() {
+        function nextChar(): string {
             return source.charAt(position + 1);
         }
 
@@ -612,20 +515,14 @@ class Lexer {
             return source.charAt(position + number);
         }
 
-        /**
-         * @returns string
-         */
-        function consumeChar() {
+        function consumeChar(): string {
             lastToken = currentChar();
             position++;
             column++;
             return lastToken;
         }
 
-        /**
-         * @returns boolean
-         */
-        function possiblePrecedingSymbol() {
+        function possiblePrecedingSymbol(): boolean {
             return (
                 Lexer.isAlpha(lastToken) ||
                 Lexer.isNumeric(lastToken) ||
@@ -638,10 +535,7 @@ class Lexer {
             );
         }
 
-        /**
-         * @returns Token
-         */
-        function consumeWhitespace() {
+        function consumeWhitespace(): Token {
             var whitespace = makeToken("WHITESPACE");
             var value = "";
             while (currentChar() && Lexer.isWhitespace(currentChar())) {
@@ -662,49 +556,34 @@ class Lexer {
      * @param {boolean} [template]
      * @returns {Tokens}
      */
-    tokenize(string, template) {
+    tokenize(string: string, template?: boolean): Tokens {
         return Lexer.tokenize(string, template)
     }
 }
 
-/**
- * @typedef {Object} Token
- * @property {string} [type]
- * @property {string} value
- * @property {number} [start]
- * @property {number} [end]
- * @property {number} [column]
- * @property {number} [line]
- * @property {boolean} [op] `true` if this token represents an operator
- * @property {boolean} [template] `true` if this token is a template, for class refs, id refs, strings
- */
+interface Token {
+    type?: string,
+    value: string,
+    start?: number,
+    end?: number,
+    column?: number,
+    line?: number,
+    /** `true` if this token represents an operator */
+    op?: boolean,
+    /** `true` if this token is a template, for class refs, id refs, strings */
+    template?: boolean,
+}
 
 class Tokens {
-    /**
-     * @param {Token[]} tokens 
-     * @param {Token[]} consumed 
-     * @param {string} source 
-     */
-    constructor(tokens, consumed, source) {
-        /** @type {Token[]} */
-        this.tokens = tokens;
-        /** @type {Token[]} */
-        this.consumed = consumed;
-        /** @type {string} */
-        this.source = source;
-
+    constructor(public tokens: Token[], public consumed: Token[], public source: string) {
         this.consumeWhitespace(); // consume initial whitespace
     }
 
-    /**
-     * @returns {Token[]}
-     */
-    get list() {
+    get list(): Token[] {
         return this.tokens
     }
 
-    /** @type Token | undefined */
-    _lastConsumed = undefined;
+    _lastConsumed: Token | undefined = undefined;
 
     consumeWhitespace() {
         while (this.token(0, true).type === "WHITESPACE") {
@@ -715,20 +594,11 @@ class Tokens {
         }
     }
 
-    /**
-     * @param {Tokens} tokens
-     * @param {string} error
-     * @returns {never}
-     */
-    raiseError(tokens, error) {
+    raiseError(tokens: Tokens, error: string): never {
         Parser.raiseParseError(tokens, error);
     }
 
-    /**
-     * @param {string} value
-     * @returns {Token}
-     */
-    requireOpToken(value) {
+    requireOpToken(value: string): Token {
         var token = this.matchOpToken(value);
         if (token) {
             return token;
@@ -737,15 +607,9 @@ class Tokens {
         }
     }
 
-    /**
-     * @param {string} op1
-     * @param {string} [op2]
-     * @param {string} [op3]
-     * @returns {Token | undefined}
-     */
-    matchAnyOpToken(op1, op2, op3) {
-        for (var i = 0; i < arguments.length; i++) {
-            var opToken = arguments[i];
+    matchAnyOpToken(...ops: string[]): Token | undefined {
+        for (var i = 0; i < ops.length; i++) {
+            var opToken = ops[i];
             var match = this.matchOpToken(opToken);
             if (match) {
                 return match;
@@ -753,13 +617,9 @@ class Tokens {
         }
     }
 
-    /**
-     * @param {...string} op1
-     * @returns {Token | undefined}
-     */
-    matchAnyToken(op1) {
-        for (var i = 0; i < arguments.length; i++) {
-            var opToken = arguments[i];
+    matchAnyToken(...ops: string[]): Token | undefined {
+        for (var i = 0; i < ops.length; i++) {
+            var opToken = ops[i];
             var match = this.matchToken(opToken);
             if (match !== undefined) {
                 return match;
@@ -767,24 +627,13 @@ class Tokens {
         }
     }
 
-    /**
-     * @param {string} value
-     * @returns {Token | undefined}
-     */
-    matchOpToken(value) {
+    matchOpToken(value: string): Token | undefined {
         if (this.currentToken() && this.currentToken().op && this.currentToken().value === value) {
             return this.consumeToken();
         }
     }
 
-    /**
-     * @param {string} type1
-     * @param {string} [type2]
-     * @param {string} [type3]
-     * @param {string} [type4]
-     * @returns {Token}
-     */
-    requireTokenType(type1, type2, type3, type4) {
+    requireTokenType(type1: string, type2?: string, type3?: string, type4?: string): Token {
         var token = this.matchTokenType(type1, type2, type3, type4);
         if (token) {
             return token;
@@ -793,14 +642,7 @@ class Tokens {
         }
     }
 
-    /**
-     * @param {string} type1
-     * @param {string} [type2]
-     * @param {string} [type3]
-     * @param {string} [type4]
-     * @returns {Token | undefined}
-     */
-    matchTokenType(type1, type2, type3, type4) {
+    matchTokenType(type1: string, type2?: string, type3?: string, type4?: string): Token | undefined {
         if (
             this.currentToken() &&
             this.currentToken().type &&
@@ -815,7 +657,7 @@ class Tokens {
      * @param {string} [type]
      * @returns {Token}
      */
-    requireToken(value, type) {
+    requireToken(value: string, type?: string): Token {
         var token = this.matchToken(value, type);
         if (token) {
             return token;
@@ -824,13 +666,7 @@ class Tokens {
         }
     }
 
-    /**
-     * @param {string} value
-     * @param {number} [peek]
-     * @param {string} [type]
-     * @returns {Token | undefined}
-     */
-    peekToken(value, peek, type) {
+    peekToken(value: string, peek?: number, type?: string): Token | undefined {
         peek = peek || 0;
         type = type || "IDENTIFIER";
         if(this.tokens[peek] && this.tokens[peek].value === value && this.tokens[peek].type === type){
@@ -838,12 +674,7 @@ class Tokens {
         }
     }
 
-    /**
-     * @param {string} value
-     * @param {string} [type]
-     * @returns {Token | undefined}
-     */
-    matchToken(value, type) {
+    matchToken(value: string, type?: string): Token | undefined {
         if (this.follows.indexOf(value) !== -1) {
             return undefined; // disallowed token here
         }
@@ -856,7 +687,7 @@ class Tokens {
     /**
      * @returns {Token}
      */
-    consumeToken() {
+    consumeToken(): Token {
         var match = this.tokens.shift();
         if (match !== undefined) {
             this.consumed.push(match);
@@ -874,9 +705,9 @@ class Tokens {
      * @param {string | null} [type]
      * @returns {Token[]}
      */
-    consumeUntil(value, type) {
+    consumeUntil(value: string | null, type?: string | null): Token[] {
         /** @type Token[] */
-        var tokenList = [];
+        var tokenList: Token[] = [];
         var currentToken = this.token(0, true);
 
         while (
@@ -898,7 +729,7 @@ class Tokens {
     /**
      * @returns {string}
      */
-    lastWhitespace() {
+    lastWhitespace(): string {
         if (this.consumed[this.consumed.length - 1] && this.consumed[this.consumed.length - 1].type === "WHITESPACE") {
             return this.consumed[this.consumed.length - 1].value;
         } else {
@@ -913,7 +744,7 @@ class Tokens {
     /**
      * @returns {boolean}
      */
-    hasMore() {
+    hasMore(): boolean {
         return this.tokens.length > 0;
     }
 
@@ -922,8 +753,8 @@ class Tokens {
      * @param {boolean} [dontIgnoreWhitespace]
      * @returns {Token}
      */
-    token(n, dontIgnoreWhitespace) {
-        var /**@type {Token}*/ token;
+    token(n: number, dontIgnoreWhitespace?: boolean): Token {
+        var /**@type {Token}*/ token: Token;
         var i = 0;
         do {
             if (!dontIgnoreWhitespace) {
@@ -948,43 +779,31 @@ class Tokens {
     /**
      * @returns {Token}
      */
-    currentToken() {
+    currentToken(): Token {
         return this.token(0);
     }
 
     /**
      * @returns {Token | undefined}
      */
-    lastMatch() {
+    lastMatch(): Token | undefined {
         return this._lastConsumed;
     }
 
-    /**
-     * @this {ParseElement}
-     * @returns {string}
-     */
-    static sourceFor = function () {
+    static sourceFor = function (this: ParseElement): string {
         var programSource = this.programSource;
         var endToken = this.endToken;
         return programSource.substring(this.startToken.start || 0, endToken !== undefined ? endToken.end || programSource.length : programSource.length);
     }
 
-    /**
-     * @this {ParseElement}
-     * @returns {string}
-     */
-    static lineFor = function () {
+    static lineFor = function (this: ParseElement): string {
         // @ts-expect-error
         return this.programSource.split("\n")[this.startToken.line - 1];
     }
 
-    /** @type {string[]} */
-    follows = [];
+    follows: string[] = [];
 
-    /**
-     * @param {string} str
-     */
-    pushFollow(str) {
+    pushFollow(str: string) {
         this.follows.push(str);
     }
 
@@ -998,59 +817,50 @@ class Tokens {
         return tmp;
     }
 
-    /**
-     * @param {string[]} f
-     */
-    restoreFollows(f) {
+    restoreFollows(f: string[]) {
         this.follows = f;
     }
 }
 
-/**
- * @template D
- * @typedef {D & ThisType<D>} ObjectDescriptor
- */
+type ObjectDescriptor<D> = D & ThisType<D>;
 
-/**
- * @template [N={}]
- * @typedef {ObjectDescriptor<{
- *     isFeature?: boolean;
- *     type?: string;
- *     args?: any[];
- *     op?: (context: Context, root: any, ...args: any) => any;
- *     evaluate?: (context: Context) => any;
- *     parent?: ASTNode;
- *     children?: Set<ASTNode>;
- *     root?: ASTNode;
- *     keyword?: string;
- *     endToken?: Token;
- *     next?: ASTNode;
- *     resolveNext?: (context: Context) => ASTNode;
- *     eventSource?: EventSource;
- *     install?: () => void;
- *     execute?: (context: Context) => void;
- *     apply?: (target: object, source: object, args?: object) => void;
- *     css?: string;
- * } & N>} ASTNode
- */
+interface ASTNode {
+    isFeature?: boolean;
+    type?: string;
+    args?: any[];
+    op?: (this: ASTNode, context: Context, root: any, ...args: any) => any;
+    evaluate?: (this: ASTNode, context: Context) => any;
+    parent?: ASTNode;
+    children?: Set<ASTNode>;
+    root?: ASTNode;
+    keyword?: string;
+    endToken?: Token;
+    next?: ASTNode;
+    resolveNext?: (this: ASTNode, context: Context) => ASTNode;
+    eventSource?: EventSource;
+    install?: (this: ASTNode) => void;
+    execute?: (this: ASTNode, context: Context) => void;
+    apply?: (this: ASTNode, target: object, source: object, args?: object) => void;
+    css?: string;
+}
 
-/**
- * @template [N={}]
- * @callback ParseRule
- * @param {Parser} parser
- * @param {Runtime} runtime
- * @param {Tokens} tokens
- * @param {*} [root]
- * @returns {ASTNode<N> | undefined}
- */
+type ParseRule = (parser: Parser, runtime: Runtime, tokens: Tokens, root?: any) => ASTNode | undefined;
+
+interface ParseElement {
+    startToken: Token;
+    endToken?: Token;
+    sourceFor: () => string;
+    lineFor: () => string;
+    programSource: string;
+}
 
 class Parser {
+    declare possessivesDisabled: boolean;
+
     /**
      * @param {Runtime} runtime
      */
-    constructor(runtime) {
-        this.runtime = runtime;
-
+    constructor(public runtime: Runtime) {
         this.possessivesDisabled = false;
 
         /* ============================================================================================ */
@@ -1166,63 +976,34 @@ class Parser {
         });
     }
 
-    /**
-     * @template {Parser} This
-     * @this {This}
-     * @param {(that: This) => void} plugin
-     * @returns {This}
-     */
-    use(plugin) {
+    use<This extends Parser>(this: This, plugin: (that: This) => void): This {
         plugin(this);
         return this;
     }
 
 
     /** @type {{[name: string]: ParseRule}} */
-    GRAMMAR = {};
+    GRAMMAR: { [name: string]: ParseRule; } = {};
 
     /** @type {{[name: string]: ParseRule}} */
-    COMMANDS = {};
+    COMMANDS: { [name: string]: ParseRule; } = {};
 
     /** @type {{[name: string]: ParseRule}} */
-    FEATURES = {};
+    FEATURES: { [name: string]: ParseRule; } = {};
 
     /** @type {string[]} */
-    LEAF_EXPRESSIONS = [];
+    LEAF_EXPRESSIONS: string[] = [];
     /** @type {string[]} */
-    INDIRECT_EXPRESSIONS = [];
+    INDIRECT_EXPRESSIONS: string[] = [];
 
-    /**
-     * @typedef {object} ParseElement
-     * @property {Token} startToken
-     * @property {Token} [endToken]
-     * @property {() => string} sourceFor
-     * @property {() => string} lineFor
-     * @property {string} programSource
-     */
-
-    /**
-     * @template {Partial<ParseElement>} T
-     * @param {T} parseElement
-     * @param {Token} start
-     * @param {Tokens} tokens
-     * @returns {asserts parseElement is T & ParseElement}
-     */
-    initElt(parseElement, start, tokens) {
+    initElt<T extends Partial<ParseElement>>(parseElement: T, start: Token, tokens: Tokens): asserts parseElement is T & ParseElement {
         parseElement.startToken = start;
         parseElement.sourceFor = Tokens.sourceFor;
         parseElement.lineFor = Tokens.lineFor;
         parseElement.programSource = tokens.source;
     }
 
-    /**
-     * @template {keyof typeof this.GRAMMAR} [Type=string]
-     * @param {Type} type
-     * @param {Tokens} tokens
-     * @param {ASTNode} [root]
-     * @returns {ASTNode<ParseElement> | undefined}
-     */
-    parseElement(type, tokens, root = undefined) {
+    parseElement<Type extends keyof typeof this.GRAMMAR = string>(type: Type, tokens: Tokens, root: ASTNode | undefined = undefined): ASTNode & ParseElement & ThisType<ParseElement> | undefined {
         var elementDefinition = this.GRAMMAR[type];
         if (elementDefinition !== undefined) {
             var start = tokens.currentToken();
@@ -1240,15 +1021,7 @@ class Parser {
         }
     }
 
-    /**
-     * @template {string} Type
-     * @param {Type} type
-     * @param {Tokens} tokens
-     * @param {string} [message]
-     * @param {*} [root]
-     * @returns {ReturnType<typeof this.GRAMMAR[Type]> & ParseElement}
-     */
-    requireElement(type, tokens, message, root) {
+    requireElement<Type extends string>(type: Type, tokens: Tokens, message?: string, root?: any): ReturnType<(typeof this.GRAMMAR)[Type]> & ParseElement {
         var result = this.parseElement(type, tokens, root);
         if (!result) Parser.raiseParseError(tokens, message || "Expected " + type);
         // @ts-ignore
@@ -1260,7 +1033,7 @@ class Parser {
      * @param {Tokens} tokens
      * @returns {ASTNode | undefined}
      */
-    parseAnyOf(types, tokens) {
+    parseAnyOf(types: string[], tokens: Tokens): ASTNode | undefined {
         for (var i = 0; i < types.length; i++) {
             var type = types[i];
             var expression = this.parseElement(type, tokens);
@@ -1270,12 +1043,7 @@ class Parser {
         }
     }
 
-    /**
-     * @template {string} [Name=string]
-     * @param {Name} name
-     * @param {typeof this.GRAMMAR[Name]} definition
-     */
-    addGrammarElement(name, definition) {
+    addGrammarElement<Name extends string = string>(name: Name, definition: (typeof this.GRAMMAR)[Name]) {
         this.GRAMMAR[name] = definition;
     }
 
@@ -1284,7 +1052,7 @@ class Parser {
      * @param {string} keyword
      * @param {ParseRule<N>} definition
      */
-    addCommand(keyword, definition) {
+    addCommand<N>(keyword: string, definition: ParseRule<N>) {
         var commandGrammarType = keyword + "Command";
         var commandDefinitionWrapper = function (parser, runtime, tokens) {
             const commandElement = definition(parser, runtime, tokens);
@@ -1301,12 +1069,7 @@ class Parser {
         this.COMMANDS[keyword] = commandDefinitionWrapper;
     }
 
-    /**
-     * @template {string} Keyword
-     * @param {Keyword} keyword
-     * @param {typeof this.GRAMMAR[`${Keyword}Feature`] & (typeof this.FEATURES)[Keyword]} definition
-     */
-    addFeature(keyword, definition) {
+    addFeature<Keyword extends string>(keyword: Keyword, definition: (typeof this.GRAMMAR)[`${Keyword}Feature`] & (typeof this.FEATURES)[Keyword]) {
         var featureGrammarType = keyword + "Feature";
 
         /** @satisfies {ParseRule} */
@@ -1323,31 +1086,17 @@ class Parser {
         this.FEATURES[keyword] = featureDefinitionWrapper;
     }
 
-    /**
-     * @template {string} [Name=string]
-     * @param {Name} name
-     * @param {typeof this.GRAMMAR[Name]} definition
-     */
-    addLeafExpression(name, definition) {
+    addLeafExpression<Name extends string = string>(name: Name, definition: (typeof this.GRAMMAR)[Name]) {
         this.LEAF_EXPRESSIONS.push(name);
         this.addGrammarElement(name, definition);
     }
 
-    /**
-     * @template {string} [Name=string]
-     * @param {Name} name
-     * @param {typeof this.GRAMMAR[Name]} definition
-     */
-    addIndirectExpression(name, definition) {
+    addIndirectExpression<Name extends string = string>(name: Name, definition: (typeof this.GRAMMAR)[Name]) {
         this.INDIRECT_EXPRESSIONS.push(name);
         this.addGrammarElement(name, definition);
     }
 
-    /**
-     * @param {Tokens} tokens
-     * @returns string
-     */
-    static createParserContext(tokens) {
+    static createParserContext(tokens: Tokens): string {
         var currentToken = tokens.currentToken();
         var source = tokens.source;
         var lines = source.split("\n");
@@ -1358,12 +1107,7 @@ class Parser {
         return contextLine + "\n" + " ".repeat(offset) + "^^\n\n";
     }
 
-    /**
-     * @param {Tokens} tokens
-     * @param {string} [message]
-     * @returns {never}
-     */
-    static raiseParseError(tokens, message) {
+    static raiseParseError(tokens: Tokens, message?: string): never {
         message =
             (message || "Unexpected Token : " + tokens.currentToken().value) + "\n\n" + Parser.createParserContext(tokens);
         var error = new Error(message);
@@ -1371,30 +1115,17 @@ class Parser {
         throw error;
     }
 
-    /**
-     * @param {Tokens} tokens
-     * @param {string} [message]
-     * @returns {never}
-     */
-    raiseParseError(tokens, message) {
+    raiseParseError(tokens: Tokens, message?: string): never {
         Parser.raiseParseError(tokens, message);
     }
 
-    /**
-     * @param {Tokens} tokens
-     * @returns {ASTNode | undefined}
-     */
-    parseHyperScript(tokens) {
+    parseHyperScript(tokens: Tokens): ASTNode | undefined {
         var result = this.parseElement("hyperscript", tokens);
         if (tokens.hasMore()) this.raiseParseError(tokens);
         if (result) return result;
     }
 
-    /**
-     * @param {ASTNode | undefined} elt
-     * @param {ASTNode} parent
-     */
-    setParent(elt, parent) {
+    setParent(elt: ASTNode | undefined, parent: ASTNode) {
         if (typeof elt === 'object') {
             elt.parent = parent;
             if (typeof parent === 'object') {
@@ -1405,27 +1136,15 @@ class Parser {
         }
     }
 
-    /**
-     * @param {Token} token
-     * @returns {ParseRule}
-     */
-    commandStart(token) {
+    commandStart(token: Token): ParseRule {
         return this.COMMANDS[token.value || ""];
     }
 
-    /**
-     * @param {Token} token
-     * @returns {ParseRule}
-     */
-    featureStart(token) {
+    featureStart(token: Token): ParseRule {
         return this.FEATURES[token.value || ""];
     }
 
-    /**
-     * @param {Token} token
-     * @returns {boolean}
-     */
-    commandBoundary(token) {
+    commandBoundary(token: Token): boolean {
         if (
             token.value == "end" ||
             token.value == "then" ||
@@ -1441,13 +1160,9 @@ class Parser {
         return false;
     }
 
-    /**
-     * @param {Tokens} tokens
-     * @returns {(string | ASTNode)[]}
-     */
-    parseStringTemplate(tokens) {
+    parseStringTemplate(tokens: Tokens): (string | ASTNode)[] {
         /** @type {(string | ASTNode)[]} */
-        var returnArr = [""];
+        var returnArr: (string | ASTNode)[] = [""];
         do {
             returnArr.push(tokens.lastWhitespace());
             if (tokens.currentToken().value === "$") {
@@ -1470,10 +1185,7 @@ class Parser {
         return returnArr;
     }
 
-    /**
-     * @param {ASTNode} commandList
-     */
-    ensureTerminated(commandList) {
+    ensureTerminated(commandList: ASTNode) {
         const runtime = this.runtime;
         var implicitReturn = {
             type: "implicitReturn",
@@ -1498,11 +1210,10 @@ class Parser {
 }
 
 class Runtime {
-    /**
-     * @param {Lexer} [lexer]
-     * @param {Parser} [parser]
-     */
-    constructor(lexer, parser) {
+    declare lexer: Lexer;
+    declare parser: Parser;
+
+    constructor(lexer?: Lexer, parser?: Parser) {
         /** @type {Lexer} */ this.lexer = lexer ?? new Lexer;
         /** @type {Parser} */ this.parser = parser ?? new Parser(this)
             .use(hyperscriptCoreGrammar)
@@ -1510,12 +1221,7 @@ class Runtime {
         this.parser.runtime = this;
     }
 
-    /**
-     * @param {Element} elt
-     * @param {string} selector
-     * @returns boolean
-     */
-    matchesSelector(elt, selector) {
+    matchesSelector(elt: Element, selector: string): boolean {
         // noinspection JSUnresolvedVariable
         var matchesFunction =
             // @ts-ignore
@@ -1523,12 +1229,7 @@ class Runtime {
         return matchesFunction && matchesFunction.call(elt, selector);
     }
 
-    /**
-     * @param {string} eventName
-     * @param {Object} [detail]
-     * @returns {Event}
-     */
-    makeEvent(eventName, detail) {
+    makeEvent(eventName: string, detail?: object): Event {
         var evt;
         if (globalScope.Event && typeof globalScope.Event === "function") {
             evt = new Event(eventName, {
@@ -1543,14 +1244,7 @@ class Runtime {
         return evt;
     }
 
-    /**
-     * @param {Element} elt
-     * @param {string} eventName
-     * @param {Object} [detail]
-     * @param {Element} [sender]
-     * @returns {boolean}
-     */
-    triggerEvent(elt, eventName, detail, sender) {
+    triggerEvent(elt: Element, eventName: string, detail?: object, sender?: Element): boolean {
         detail = detail || {};
         detail["sender"] = sender;
         var event = this.makeEvent(eventName, detail);
@@ -1561,11 +1255,8 @@ class Runtime {
     /**
      * isArrayLike returns `true` if the provided value is an array or
      * a NodeList (which is close enough to being an array for our purposes).
-     *
-     * @param {any} value
-     * @returns {value is Array | NodeList}
      */
-    isArrayLike(value) {
+    isArrayLike(value: unknown): value is Array<unknown> | NodeList {
         return Array.isArray(value) ||
             (typeof NodeList !== 'undefined' && (value instanceof NodeList || value instanceof HTMLCollection));
     }
@@ -1573,12 +1264,10 @@ class Runtime {
     /**
      * isIterable returns `true` if the provided value supports the
      * iterator protocol.
-     *
-     * @param {any} value
-     * @returns {value is Iterable}
      */
-    isIterable(value) {
+    isIterable(value: unknown): value is Iterable<unknown> {
         return typeof value === 'object'
+            && value !== null
             && Symbol.iterator in value
             && typeof value[Symbol.iterator] === 'function';
     }
@@ -1590,11 +1279,8 @@ class Runtime {
      *
      * Currently, this is when the value is an {ElementCollection}
      * or {isArrayLike} returns true.
-     *
-     * @param {any} value
-     * @returns {value is (any[] | ElementCollection)}
      */
-    shouldAutoIterate(value) {
+    shouldAutoIterate(value: any): value is (any[] | ElementCollection) {
         return value != null && value[shouldAutoIterateSymbol] ||
             this.isArrayLike(value);
     }
@@ -1603,12 +1289,8 @@ class Runtime {
      * forEach executes the provided `func` on every item in the `value` array.
      * if `value` is a single item (and not an array) then `func` is simply called
      * once.  If `value` is null, then no further actions are taken.
-     *
-     * @template T
-     * @param {T | Iterable<T>} value
-     * @param {(item: T) => void} func
      */
-    forEach(value, func) {
+    forEach<T>(value: T | Iterable<T>, func: (item: T) => void) {
         if (value == null) {
             // do nothing
         } else if (this.isIterable(value)) {
@@ -1629,12 +1311,8 @@ class Runtime {
      * - every item of {value}, if {value} should be auto-iterated
      *   (see {shouldAutoIterate})
      * - {value} otherwise
-     *
-     * @template T
-     * @param {ElementCollection | T | T[]} value
-     * @param {(item: T) => void} func
      */
-    implicitLoop(value, func) {
+    implicitLoop<T>(value: ElementCollection | T | T[], func: (item: T) => void) {
         if (this.shouldAutoIterate(value)) {
             for (const x of value) func(x);
         } else {
@@ -1679,7 +1357,7 @@ class Runtime {
      * @param {ASTNode} command
      * @param {Context} ctx
      */
-    unifiedExec(command, ctx) {
+    unifiedExec(command: ASTNode, ctx: Context) {
         while (true) {
             try {
                 var next = this.unifiedEval(command, ctx);
@@ -1744,9 +1422,8 @@ class Runtime {
     * @param {Context} ctx
     * @returns {*}
     */
-    unifiedEval(parseElement, ctx) {
-        /** @type any[] */
-        var args = [ctx];
+    unifiedEval(parseElement: any, ctx: Context): any {
+        var args: any[] = [ctx];
         var async = false;
         var wrappedAsyncs = false;
 
@@ -1815,15 +1492,14 @@ class Runtime {
     /**
      * @type {string[] | null}
      */
-    _scriptAttrs = null;
+    _scriptAttrs: string[] | null = null;
 
     /**
     * getAttributes returns the attribute name(s) to use when
     * locating hyperscript scripts in a DOM element.  If no value
     * has been configured, it defaults to config.attributes
-    * @returns string[]
     */
-    getScriptAttributes() {
+    getScriptAttributes(): string[] {
         if (this._scriptAttrs == null) {
             this._scriptAttrs = config.attributes.replace(/ /g, "").split(",");
         }
@@ -1834,7 +1510,7 @@ class Runtime {
     * @param {Element} elt
     * @returns {string | null}
     */
-    getScript(elt) {
+    getScript(elt: Element): string | null {
         for (var i = 0; i < this.getScriptAttributes().length; i++) {
             var scriptAttribute = this.getScriptAttributes()[i];
             if (elt.hasAttribute && elt.hasAttribute(scriptAttribute)) {
@@ -1853,7 +1529,7 @@ class Runtime {
     * @param {*} elt
     * @returns {Object}
     */
-    getHyperscriptFeatures(elt) {
+    getHyperscriptFeatures(elt: any): object {
         var hyperscriptFeatures = this.hyperscriptFeaturesMap.get(elt);
         if (typeof hyperscriptFeatures === 'undefined') {
             if (elt) {
@@ -1868,7 +1544,7 @@ class Runtime {
     * @param {Object} owner
     * @param {Context} ctx
     */
-    addFeatures(owner, ctx) {
+    addFeatures(owner: object, ctx: Context) {
         if (owner) {
             Object.assign(ctx.locals, this.getHyperscriptFeatures(owner));
             this.addFeatures(owner.parentElement, ctx);
@@ -1882,14 +1558,11 @@ class Runtime {
     * @param {*} event
     * @returns {Context}
     */
-    makeContext(owner, feature, hyperscriptTarget, event) {
+    makeContext(owner: any, feature: any, hyperscriptTarget: any, event: any): Context {
         return new Context(owner, feature, hyperscriptTarget, event, this)
     }
 
-    /**
-    * @returns string
-    */
-    getScriptSelector() {
+    getScriptSelector(): string {
         return this.getScriptAttributes()
             .map(function (attribute) {
                 return "[" + attribute + "]";
@@ -1902,7 +1575,7 @@ class Runtime {
     * @param {string} type
     * @returns {any}
     */
-    convertValue(value, type) {
+    convertValue(value: any, type: string): any {
         var dynamicResolvers = conversions.dynamicResolvers;
         for (var i = 0; i < dynamicResolvers.length; i++) {
             var dynamicResolver = dynamicResolvers[i];
@@ -1927,7 +1600,7 @@ class Runtime {
     * @param {string} src
     * @returns {ASTNode}
     */
-    parse(src) {
+    parse(src: string): ASTNode {
         const lexer = this.lexer, parser = this.parser;
         var tokens = lexer.tokenize(src);
         if (this.parser.commandStart(tokens.currentToken())) {
@@ -1952,7 +1625,7 @@ class Runtime {
      * @param {Context} ctx
      * @returns {any}
      */
-    evaluateNoPromise(elt, ctx) {
+    evaluateNoPromise(elt: ASTNode & ParseElement & Required<Pick<ASTNode, "evaluate">>, ctx: Context): any {
         let result = elt.evaluate(ctx);
         if (result.next) {
             throw new Error(Tokens.sourceFor.call(elt) + " returned a Promise in a context that they are not allowed.");
@@ -1966,7 +1639,7 @@ class Runtime {
     * @param {Object} [args]
     * @returns {any}
     */
-    evaluate(src, ctx, args) {
+    evaluate(src: string, ctx: Partial<Context>, args: object): any {
         class HyperscriptModule extends EventTarget {
             constructor(mod) {
                 super();
@@ -2005,7 +1678,7 @@ class Runtime {
     /**
     * @param {Element | Document} elt
     */
-    processNode(elt) {
+    processNode(elt: Element | Document) {
         var selector = this.getScriptSelector();
         if (elt instanceof Element && this.matchesSelector(elt, selector)) {
             this.initElement(elt, elt);
@@ -2024,7 +1697,7 @@ class Runtime {
     * @param {Element} elt
     * @param {Element} [target]
     */
-    initElement(elt, target) {
+    initElement(elt: Element, target: Element) {
         if (elt.closest && elt.closest(config.disableSelector)) {
             return;
         }
@@ -2067,7 +1740,7 @@ class Runtime {
     * @param {Element} elt
     * @returns {Object}
     */
-    getInternalData(elt) {
+    getInternalData(elt: Element): object {
         var internalData = this.internalDataMap.get(elt);
         if (typeof internalData === 'undefined') {
             this.internalDataMap.set(elt, internalData = {});
@@ -2081,7 +1754,7 @@ class Runtime {
     * @param {boolean} [nullOk]
     * @returns {boolean}
     */
-    typeCheck(value, typeString, nullOk) {
+    typeCheck(value: any, typeString: string, nullOk: boolean): boolean {
         if (value == null && nullOk) {
             return true;
         }
@@ -2108,7 +1781,7 @@ class Runtime {
     * @param {string} str
     * @returns {boolean}
     */
-    isReservedWord(str) {
+    isReservedWord(str: string): boolean {
         return str === "meta" || str === "it" || str === "result" || str === "locals" ||
             str === "event" || str === "target" || str === "detail" || str === "sender" ||
             str === "body";
@@ -2118,7 +1791,7 @@ class Runtime {
     * @param {ContextLike} context
     * @returns {context is Context}
     */
-    isHyperscriptContext(context) {
+    isHyperscriptContext(context: ContextLike): context is Context {
         return context instanceof Context;
     }
 
@@ -2128,7 +1801,7 @@ class Runtime {
     * @param {string} [type]
     * @returns {any}
     */
-    resolveSymbol(str, context, type) {
+    resolveSymbol(str: string, context: ContextLike, type: string): any {
         if (str === "me" || str === "my" || str === "I") {
             return context.me;
         }
@@ -2190,7 +1863,7 @@ class Runtime {
      * @param {string | undefined} type
      * @param {any} value
      */
-    setSymbol(str, context, type, value) {
+    setSymbol(str: string, context: ContextLike, type: string | undefined, value: any) {
         if (type === "global") {
             globalScope[str] = value;
         } else if (type === "element") {
@@ -2226,7 +1899,7 @@ class Runtime {
     * @param {Context} context
     * @returns {undefined | ASTNode}
     */
-    findNext(command, context) {
+    findNext(command: ASTNode, context: Context): undefined | ASTNode {
         if (command) {
             if (command.resolveNext) {
                 return command.resolveNext(context);
@@ -2249,7 +1922,7 @@ class Runtime {
     * @param {Object<string,any>} root
     * @param {string} property
     */
-    flatGet(root, property, getter) {
+    flatGet(root: { [s: string]: any; }, property: string, getter: Getter): any {
         if (root != null) {
             var val = getter(root, property);
             if (typeof val !== "undefined") {
@@ -2282,7 +1955,7 @@ class Runtime {
      * @param {string} property
      * @returns {string}
      */
-    resolveStyle(root, property) {
+    resolveStyle(root: { [s: string]: any; }, property: string): string {
         return this.flatGet(root, property, (root, property) => root.style && root.style[property] )
     }
 
@@ -2292,7 +1965,7 @@ class Runtime {
      * @param {string} property
      * @returns {string}
      */
-    resolveComputedStyle(root, property) {
+    resolveComputedStyle(root: { [s: string]: any; }, property: string): string {
         return this.flatGet(root, property, (root, property) => getComputedStyle(
             /** @type {Element} */ (root)).getPropertyValue(property) )
     }
@@ -2303,7 +1976,7 @@ class Runtime {
     * @param {string} name
     * @param {any} value
     */
-    assignToNamespace(elt, nameSpace, name, value) {
+    assignToNamespace(elt: Element, nameSpace: string[], name: string, value: any) {
         let root;
         if (typeof document !== "undefined" && elt === document.body) {
             root = globalScope;
@@ -2374,7 +2047,7 @@ class Runtime {
     * @param {string} str
     * @returns {string}
     */
-    escapeSelector(str) {
+    escapeSelector(str: string): string {
         return str.replace(/:/g, function (str) {
             return "\\" + str;
         });
@@ -2384,7 +2057,7 @@ class Runtime {
     * @param {any} value
     * @param {*} elt
     */
-    nullCheck(value, elt) {
+    nullCheck(value: any, elt: any) {
         if (value == null) {
             throw new Error("'" + elt.sourceFor() + "' is null");
         }
@@ -2394,7 +2067,7 @@ class Runtime {
     * @param {any} value
     * @returns {boolean}
     */
-    isEmpty(value) {
+    isEmpty(value: any): boolean {
         return value == undefined || value.length === 0;
     }
 
@@ -2402,7 +2075,7 @@ class Runtime {
     * @param {any} value
     * @returns {boolean}
     */
-    doesExist(value) {
+    doesExist(value: any): boolean {
         if(value == null){
             return false;
         }
@@ -2419,7 +2092,7 @@ class Runtime {
     * @param {Node} node
     * @returns {Document|ShadowRoot}
     */
-    getRootNode(node) {
+    getRootNode(node: Node): Document | ShadowRoot {
         if (node && node instanceof Node) {
             var rv = node.getRootNode();
             if (rv instanceof Document || rv instanceof ShadowRoot) return rv;
@@ -2435,7 +2108,7 @@ class Runtime {
      *
      * @typedef {{queue:Array, executing:boolean}} EventQueue
      */
-    getEventQueueFor(elt, onFeature) {
+    getEventQueueFor(elt: Element, onFeature: ASTNode): EventQueue {
         let internalData = this.getInternalData(elt);
         var eventQueuesForElt = internalData.eventQueues;
         if (eventQueuesForElt == null) {
@@ -2477,7 +2150,7 @@ class Runtime {
 
     /** @type string | null */
     // @ts-ignore
-    hyperscriptUrl = "document" in globalScope && document.currentScript ? document.currentScript.src : null;
+    hyperscriptUrl: string | null = "document" in globalScope && document.currentScript ? document.currentScript.src : null;
 }
 
 
@@ -2591,7 +2264,7 @@ class Context {
     * @param {*} event
     * @param {Runtime} runtime
     */
-    constructor(owner, feature, hyperscriptTarget, event, runtime) {
+    constructor(owner: any, feature: any, hyperscriptTarget: any, event: any, runtime: Runtime) {
         this.meta = {
             parser: runtime.parser,
             lexer: runtime.lexer,
@@ -2667,7 +2340,7 @@ class ElementCollection {
 /**
  * @type {symbol}
  */
-const shouldAutoIterateSymbol = Symbol();
+const shouldAutoIterateSymbol: symbol = Symbol();
 
 function getOrInitObject(root, prop) {
     var value = root[prop];
@@ -2683,11 +2356,8 @@ function getOrInitObject(root, prop) {
 /**
  * parseJSON parses a JSON string into a corresponding value.  If the
  * value passed in is not valid JSON, then it logs an error and returns `null`.
- *
- * @param {string} jString
- * @returns any
  */
-function parseJSON(jString) {
+function parseJSON(jString: string): any {
     try {
         return JSON.parse(jString);
     } catch (error) {
@@ -2701,7 +2371,7 @@ function parseJSON(jString) {
  * value, but msg should commonly be a simple string.
  * @param {*} msg
  */
-function logError(msg) {
+function logError(msg: any) {
     if (console.error) {
         console.error(msg);
     } else if (console.log) {
@@ -2719,7 +2389,7 @@ function varargConstructor(Cls, args) {
 /**
  * @param {Parser} parser
  */
-function hyperscriptCoreGrammar(parser) {
+function hyperscriptCoreGrammar(parser: Parser) {
     parser.addLeafExpression("parenthesized", function (parser, _runtime, tokens) {
         if (tokens.matchOpToken("(")) {
             var follows = tokens.clearFollows();
@@ -2738,7 +2408,7 @@ function hyperscriptCoreGrammar(parser) {
         if (!stringToken) return;
         var rawValue = /** @type {string} */ (stringToken.value);
         /** @type {any[]} */
-        var args;
+        var args: any[];
         if (stringToken.template) {
             var innerTokens = Lexer.tokenize(rawValue, true);
             args = parser.parseStringTemplate(innerTokens);
@@ -3425,7 +3095,7 @@ function hyperscriptCoreGrammar(parser) {
         // @ts-expect-error
         var conversion = parser.requireElement("dotOrColonPath", tokens).evaluate(); // OK No promise
         /** @type {ASTNode<{type: "asExpression"}>} */
-        var propertyAccess = {
+        var propertyAccess: ASTNode<{ type: "asExpression"; }> = {
             type: "asExpression",
             root: root,
             args: [root],
@@ -3723,7 +3393,7 @@ function hyperscriptCoreGrammar(parser) {
         if (expression !== undefined) {
             expression['booped'] = true;
             /** @type {((this: ASTNode, context: Context) => any) | undefined} */
-            var originalEvaluate = expression.evaluate;
+            var originalEvaluate: ((this: ASTNode, context: Context) => any) | undefined = expression.evaluate;
             /** @this {ASTNode} */
             expression.evaluate = function (ctx) {
                 let value = /** @type {(this: ASTNode, context: Context) => any} */(originalEvaluate).apply(/** @type {ASTNode} */(expression), /** @type {any} */(arguments));
@@ -3901,7 +3571,7 @@ function hyperscriptCoreGrammar(parser) {
 
     parser.addGrammarElement("mathOperator", function (parser, runtime, tokens) {
         /** @type {ASTNode<{}> | undefined} */
-        var expr = parser.parseElement("unaryExpression", tokens);
+        var expr: ASTNode<{}> | undefined = parser.parseElement("unaryExpression", tokens);
         var mathOp,
             initialMathOp = null;
         mathOp = tokens.matchAnyOpToken("+", "-", "*", "/") || tokens.matchToken('mod');
@@ -3965,7 +3635,7 @@ function hyperscriptCoreGrammar(parser) {
 
     parser.addGrammarElement("comparisonOperator", function (parser, runtime, tokens) {
         /** @type {ASTNode<{}> | undefined} */
-        var expr = parser.parseElement("mathExpression", tokens);
+        var expr: ASTNode<{}> | undefined = parser.parseElement("mathExpression", tokens);
         var comparisonToken = tokens.matchAnyOpToken("<", ">", "<=", ">=", "==", "===", "!=", "!==");
         var operator = comparisonToken !== undefined ? comparisonToken.value : undefined;
         var hasRightValue = true; // By default, most comparisons require two values, but there are some exceptions.
@@ -4158,7 +3828,7 @@ function hyperscriptCoreGrammar(parser) {
 
     parser.addGrammarElement("logicalOperator", function (parser, runtime, tokens) {
         /** @type {ASTNode<{}> | undefined} */
-        var expr = parser.parseElement("comparisonExpression", tokens);
+        var expr: ASTNode<{}> | undefined = parser.parseElement("comparisonExpression", tokens);
         var logicalOp,
             initialLogicalOp = null;
         logicalOp = tokens.matchToken("and") || tokens.matchToken("or");
@@ -4486,7 +4156,7 @@ function hyperscriptCoreGrammar(parser) {
             execCount: 0,
             errorHandler: errorHandler,
             errorSymbol: errorSymbol,
-            execute: function (/** @type {Context} */ ctx) {
+            execute: function (/** @type {Context} */ ctx: Context) {
                 let eventQueueInfo = runtime.getEventQueueFor(ctx.me, onFeature);
                 if (eventQueueInfo.executing && every === false) {
                     if (queueNone || (queueFirst && eventQueueInfo.queue.length > 0)) {
@@ -4714,7 +4384,7 @@ function hyperscriptCoreGrammar(parser) {
             errorHandler = parser.parseElement("commandList", tokens);
         }
 
-        /** @type {ReturnType<typeof parser.GRAMMAR["commandList"]> & ParseElement | undefined} */ var finallyHandler;
+        /** @type {ReturnType<typeof parser.GRAMMAR["commandList"]> & ParseElement | undefined} */ var finallyHandler: (ReturnType<typeof parser.GRAMMAR["commandList"]> & ParseElement) | undefined;
         if (tokens.matchToken("finally")) {
             finallyHandler = parser.requireElement("commandList", tokens);
             parser.ensureTerminated(finallyHandler);
@@ -5043,7 +4713,7 @@ function hyperscriptCoreGrammar(parser) {
             var body = parser.requireElement("commandList", tokens);
 
             // Append halt
-            /** @type {ASTNode} */ var end = body;
+            /** @type {ASTNode} */ var end: ASTNode = body;
             while (end.next) end = end.next;
             end.next = runtime.HALT;
 
@@ -5528,8 +5198,8 @@ function hyperscriptCoreGrammar(parser) {
 
         var expr = parser.requireElement("primaryExpression", tokens);
 
-        /** @type {ASTNode | undefined} */ var rootRoot = expr.root;
-        /** @type {ASTNode | undefined} */ var root = expr;
+        /** @type {ASTNode | undefined} */ var rootRoot: ASTNode | undefined = expr.root;
+        /** @type {ASTNode | undefined} */ var root: ASTNode | undefined = expr;
         // @ts-expect-error
         while (rootRoot.root !== undefined) {
             // @ts-expect-error
@@ -5553,7 +5223,7 @@ function hyperscriptCoreGrammar(parser) {
         }
 
         /** @type {ASTNode} */
-        var pseudoCommand;
+        var pseudoCommand: ASTNode;
         if (realRoot) {
             pseudoCommand = /** @type {ASTNode} */({
                 type: "pseudoCommand",
@@ -5603,7 +5273,7 @@ function hyperscriptCoreGrammar(parser) {
     * @param {*} value
     * @returns
     */
-    var makeSetter = function (parser, runtime, tokens, target, value) {
+    var makeSetter = function (parser: Parser, runtime: Runtime, tokens: Tokens, target: any, value: any) {
 
         var symbolWrite = target.type === "symbol";
         var attributeWrite = target.type === "attributeRef";
@@ -5674,7 +5344,7 @@ function hyperscriptCoreGrammar(parser) {
         var value = parser.requireElement("expression", tokens);
 
         /** @type {ASTNode} */
-        var setter = makeSetter(parser, runtime, tokens, target, value);
+        var setter: ASTNode = makeSetter(parser, runtime, tokens, target, value);
         var defaultCmd = {
             target: target,
             value: value,
@@ -5991,7 +5661,7 @@ function hyperscriptCoreGrammar(parser) {
         var value = parser.requireElement("expression", tokens);
 
         /** @type {ASTNode} */
-        var implicitResultSymbol = {
+        var implicitResultSymbol: ASTNode = {
             type: "symbol",
             evaluate: function (context) {
                 return runtime.resolveSymbol("result", context);
@@ -6217,7 +5887,7 @@ function hyperscriptCoreGrammar(parser) {
      * @param {Tokens} tokens
      * @param {Parser} parser
      */
-    function parseConversionInfo(tokens, parser) {
+    function parseConversionInfo(tokens: Tokens, parser: Parser) {
         var type = "text";
         var conversion;
         tokens.matchToken("a") || tokens.matchToken("an");
@@ -6259,7 +5929,7 @@ function hyperscriptCoreGrammar(parser) {
         var conversion = conversionInfo ? conversionInfo.conversion : null;
 
         /** @type {ASTNode} */
-        var fetchCmd = /** @type {ASTNode} */({
+        var fetchCmd: ASTNode = /** @type {ASTNode} */({
             url: url,
             argExpressions: args,
             args: [url, args],
@@ -6338,7 +6008,7 @@ function hyperscriptCoreGrammar(parser) {
 /**
  * @param {Parser} parser
  */
-function hyperscriptWebGrammar(parser) {
+function hyperscriptWebGrammar(parser: Parser) {
     parser.addCommand("settle", function (parser, runtime, tokens) {
         if (tokens.matchToken("settle")) {
             if (!parser.commandBoundary(tokens.currentToken())) {
@@ -7017,7 +6687,7 @@ function hyperscriptWebGrammar(parser) {
      * @param {string | undefined} prop
      * @param {any} valueToPut
      */
-    function putInto(runtime, context, prop, valueToPut) {
+    function putInto(runtime: Runtime, context: ContextLike, prop: string | undefined, valueToPut: any) {
         var value;
         if (prop !== undefined) {
             value = runtime.resolveSymbol(prop, context);
@@ -7054,7 +6724,7 @@ function hyperscriptWebGrammar(parser) {
             }
             /** @type {ASTNode<{attribute?: ASTNode<{name: string;}>; name: string; prop: ASTNode<{value: unknown;}>;} & ParseElement>} */
             // @ts-expect-error
-            var target = parser.requireElement("expression", tokens);
+            var target: ASTNode<{ attribute?: ASTNode<{ name: string; }>; name: string; prop: ASTNode<{ value: unknown; }>; } & ParseElement> = parser.requireElement("expression", tokens);
 
             var operation = operationToken.value;
 
@@ -7157,7 +6827,7 @@ function hyperscriptWebGrammar(parser) {
      * @param {Runtime} runtime
      * @param {Tokens} tokens
      */
-    function parsePseudopossessiveTarget(parser, runtime, tokens) {
+    function parsePseudopossessiveTarget(parser: Parser, runtime: Runtime, tokens: Tokens) {
         var targets;
         if (
             tokens.matchToken("the") ||
@@ -7618,11 +7288,11 @@ function hyperscriptWebGrammar(parser) {
         }
         var conversion = str.split(":")[1];
         /** @type Object<string, string | string[]> */
-        var result = {};
+        var result: { [s: string]: string | string[]; } = {};
 
         var implicitLoop = parser.runtime.implicitLoop.bind(parser.runtime);
 
-        implicitLoop(node, function (/** @type HTMLInputElement */ node) {
+        implicitLoop(node, function (/** @type HTMLInputElement */ node: HTMLInputElement) {
             // Try to get a value directly from this node
             var input = getInputInfo(node);
 
@@ -7634,7 +7304,7 @@ function hyperscriptWebGrammar(parser) {
             // Otherwise, try to query all child elements of this node that *should* contain values.
             if (node.querySelectorAll != undefined) {
                 /** @type {NodeListOf<HTMLInputElement>} */
-                var children = node.querySelectorAll("input,select,textarea");
+                var children: NodeListOf<HTMLInputElement> = node.querySelectorAll("input,select,textarea");
                 children.forEach(appendValue);
             }
         });
@@ -7656,7 +7326,7 @@ function hyperscriptWebGrammar(parser) {
         /**
          * @param {HTMLInputElement} node
          */
-        function appendValue(node) {
+        function appendValue(node: HTMLInputElement) {
             var info = getInputInfo(node);
 
             if (info === undefined || info.value === undefined) {
@@ -7674,10 +7344,10 @@ function hyperscriptWebGrammar(parser) {
          * @param {HTMLInputElement} node
          * @returns {{ name: string; value?: string | string[]; } | undefined}
          */
-        function getInputInfo(node) {
+        function getInputInfo(node: HTMLInputElement): { name: string; value?: string | string[]; } | undefined {
             try {
                 /** @type {{ name?: string; value?: string | string[]; }}*/
-                var result = {
+                var result: { name?: string; value?: string | string[]; } = {
                     name: node.name,
                     value: node.value,
                 };
@@ -7700,7 +7370,7 @@ function hyperscriptWebGrammar(parser) {
 
                 if (node.type == "select-multiple") {
                     /** @type {NodeListOf<HTMLSelectElement>} */
-                    var selected = node.querySelectorAll("option[selected]");
+                    var selected: NodeListOf<HTMLSelectElement> = node.querySelectorAll("option[selected]");
 
                     result.value = [];
                     for (var index = 0; index < selected.length; index++) {
@@ -7718,12 +7388,12 @@ function hyperscriptWebGrammar(parser) {
      * @param {object} value
      * @returns {string}
      */
-    config.conversions["HTML"] = function (value) {
+    config.conversions["HTML"] = function (value: object): string {
         /**
          * @param {object} value
          * @returns {string}
          */
-        var toHTML = function (value) {
+        var toHTML = function (value: object): string {
             if (value instanceof Array) {
                 return value
                     .map(function (item) {
@@ -7778,7 +7448,7 @@ const runtime_ = new Runtime(), lexer_ = runtime_.lexer, parser_ = runtime_.pars
 
 function browserInit() {
     /** @type {HTMLScriptElement[]} */
-    var scripts = Array.from(globalScope.document.querySelectorAll("script[type='text/hyperscript'][src]"));
+    var scripts: HTMLScriptElement[] = Array.from(globalScope.document.querySelectorAll("script[type='text/hyperscript'][src]"));
     Promise.all(
         scripts.map(function (script) {
             return fetch(script.src)
@@ -7791,7 +7461,7 @@ function browserInit() {
     .then(() => ready(function () {
         mergeMetaConfig();
         runtime_.processNode(document.documentElement);
-        globalScope.document.addEventListener("htmx:load", function (/** @type {CustomEvent} */ evt) {
+        globalScope.document.addEventListener("htmx:load", function (/** @type {CustomEvent} */ evt: CustomEvent) {
             runtime_.processNode(evt.detail.elt);
         });
     }));
@@ -7806,7 +7476,7 @@ function browserInit() {
 
     function getMetaConfig() {
         /** @type {HTMLMetaElement | null} */
-        var element = document.querySelector('meta[name="htmx-config"]');
+        var element: HTMLMetaElement | null = document.querySelector('meta[name="htmx-config"]');
         if (element !== null) {
             return parseJSON(element.content);
         } else {
@@ -7889,6 +7559,6 @@ const _hyperscript_api = {
 /**
  * @type {Hyperscript}
  */
-const _hyperscript = Object.assign(_hyperscript_api.evaluate, _hyperscript_api);
+const _hyperscript: Hyperscript = Object.assign(_hyperscript_api.evaluate, _hyperscript_api);
 
 export default _hyperscript;
